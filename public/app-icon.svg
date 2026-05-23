@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Mortgage OS">
+  <rect width="512" height="512" rx="112" fill="#0f766e"/>
+  <path fill="#f97316" d="M88 246 256 112l168 134v42L256 154 88 288z"/>
+  <path fill="#ffffff" d="M130 278 256 178l126 100v118a28 28 0 0 1-28 28H158a28 28 0 0 1-28-28z"/>
+  <path fill="#0f766e" d="M196 318h120v30H196zm0 54h120v30H196z"/>
+  <circle cx="348" cy="164" r="42" fill="#f97316"/>
+  <path fill="#ffffff" d="M348 139c21 0 30 12 30 25s-9 25-30 25-30-12-30-25 9-25 30-25zm0 18c-8 0-12 3-12 7s4 7 12 7 12-3 12-7-4-7-12-7z"/>
+</svg>

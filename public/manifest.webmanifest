@@ -1,0 +1,19 @@
+{
+  "name": "Mortgage Relationship OS",
+  "short_name": "Mortgage OS",
+  "description": "Lead pipeline, partner touches, KPIs, and weekly updates for mortgage relationship management.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#edf3f2",
+  "theme_color": "#0f766e",
+  "icons": [
+    {
+      "src": "/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
