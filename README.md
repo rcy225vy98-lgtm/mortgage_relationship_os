@@ -9,6 +9,22 @@ npm install
 npm run dev
 ```
 
+## Daily Change Workflow
+
+Use `main` as the normal working branch. It tracks GitHub `main`, and Vercel deploys automatically after each push.
+
+```bash
+git status
+npm run verify
+git add -A
+git commit -m "Describe the change"
+git push
+```
+
+Before pushing, `npm run verify` runs lint and a production build. If that passes locally, Vercel should usually deploy cleanly.
+
+Keep real secrets in `.env` locally and in Vercel environment variables. Commit `.env.example`, not `.env`.
+
 ## Open From Your Phone
 
 Make sure your computer and phone are on the same Wi-Fi network, then run:
