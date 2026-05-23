@@ -5706,3 +5706,188 @@ input[type='date']::-webkit-datetime-edit {
     padding: 10px 14px;
   }
 }
+
+@media (max-width: 640px) {
+  .app-shell {
+    padding: 10px 8px 24px !important;
+  }
+
+  .pipeline-page,
+  .lead-pipeline-panel {
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
+  .lead-pipeline-panel .pipeline-workspace,
+  .lead-pipeline-panel:has(.lead-card-expanded-detail) .pipeline-workspace {
+    grid-template-columns: 1fr !important;
+  }
+
+  .lead-pipeline-panel .lead-list {
+    gap: 12px !important;
+  }
+
+  .lead-pipeline-panel .lead-card-group {
+    display: block !important;
+    min-width: 0 !important;
+  }
+
+  .lead-detail-panel-trigger {
+    top: 14px !important;
+    right: 14px !important;
+    min-height: 38px !important;
+    padding: 0 16px !important;
+    font-size: 0.82rem !important;
+  }
+
+  .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) {
+    width: 100% !important;
+    min-width: 0 !important;
+    border-radius: 22px !important;
+    padding: 24px 14px 16px !important;
+  }
+
+  .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail)::before {
+    width: 98px !important;
+    height: 78px !important;
+  }
+
+  .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .lead-topline {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+
+  .lead-pipeline-panel.density-compact .lead-card:not(.lead-card-expanded-detail) .lead-topline {
+    grid-template-columns: 1fr !important;
+  }
+
+  .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .collapsed-lead-identity {
+    min-width: 0 !important;
+    padding-right: 104px !important;
+  }
+
+  .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .collapsed-lead-name-stack span {
+    font-size: clamp(1.35rem, 7vw, 1.9rem) !important;
+    line-height: 0.95 !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .lead-referral-line {
+    max-width: 100% !important;
+    font-size: 0.95rem !important;
+    line-height: 1.25 !important;
+  }
+
+  .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .collapsed-lead-chips {
+    gap: 8px !important;
+    margin-top: 14px !important;
+  }
+
+  .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .collapsed-lead-chips span {
+    max-width: 100% !important;
+    padding: 8px 10px !important;
+    font-size: 0.76rem !important;
+    line-height: 1 !important;
+    white-space: normal !important;
+  }
+
+  .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .lead-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    width: 100% !important;
+    padding-right: 0 !important;
+  }
+
+  .lead-pipeline-panel.density-compact .lead-card:not(.lead-card-expanded-detail) .lead-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    padding-right: 0 !important;
+  }
+
+  .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .lead-stat-item {
+    min-width: 0 !important;
+    min-height: 68px !important;
+    border-radius: 16px !important;
+    padding: 11px 12px !important;
+  }
+
+  .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .lead-stat-item span {
+    margin-bottom: 7px !important;
+    font-size: 0.64rem !important;
+    letter-spacing: 0.06em !important;
+    line-height: 1.1 !important;
+    white-space: normal !important;
+  }
+
+  .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .lead-stat-item strong,
+  .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .lead-stat-item .missing-data-value {
+    font-size: 1rem !important;
+    line-height: 1.1 !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .lead-summary-row {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+    margin-top: 2px !important;
+  }
+
+  .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .next-best-action-card,
+  .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .smart-follow-up-strip,
+  .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .closing-focus-strip {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 58px !important;
+    border-radius: 16px !important;
+    padding: 12px 14px !important;
+  }
+
+  .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .next-best-action-card {
+    grid-template-columns: 1fr !important;
+    row-gap: 6px !important;
+  }
+
+  .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .next-best-action-card span {
+    grid-row: auto !important;
+    padding: 6px 9px !important;
+    font-size: 0.68rem !important;
+  }
+
+  .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .next-best-action-card strong {
+    font-size: 1rem !important;
+  }
+
+  .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .next-best-action-card p,
+  .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .smart-follow-up-headline p {
+    display: block !important;
+    font-size: 0.92rem !important;
+    line-height: 1.25 !important;
+    -webkit-line-clamp: unset !important;
+  }
+
+  .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .smart-follow-up-headline span {
+    display: inline-flex !important;
+    margin: 0 0 8px !important;
+    padding: 6px 9px !important;
+    font-size: 0.68rem !important;
+  }
+
+  .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .lead-actions {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    margin-top: 14px !important;
+    padding-top: 14px !important;
+  }
+
+  .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .lead-actions .small-button {
+    width: 100% !important;
+    min-height: 46px !important;
+    border-radius: 18px !important;
+    padding: 10px 8px !important;
+    font-size: 0.85rem !important;
+    line-height: 1.05 !important;
+    white-space: normal !important;
+  }
+}
