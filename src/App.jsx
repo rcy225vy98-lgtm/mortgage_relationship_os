@@ -163,6 +163,15 @@ function formatCompactCurrency(value) {
   return `$${amount.toLocaleString()}`
 }
 
+function formatSyncTime(dateValue) {
+  if (!dateValue) return ''
+
+  return new Intl.DateTimeFormat([], {
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(dateValue)
+}
+
 function getPartnerDisplayName(lead) {
   if (lead.leadType === 'Agent Prospect' && lead.stage === 'Referral Partner') {
     return lead.client
@@ -391,11 +400,13 @@ function App() {
   const [hasCompletedCloudStartupLoad, setHasCompletedCloudStartupLoad] = useState(false)
   const [isSupabaseAutoSaving, setIsSupabaseAutoSaving] = useState(false)
   const [supabaseAutoSaveMessage, setSupabaseAutoSaveMessage] = useState('Manual cloud save mode is active')
+  const [lastLeadCloudSyncAt, setLastLeadCloudSyncAt] = useState(null)
   const [isPartnerProfileSyncRunning, setIsPartnerProfileSyncRunning] = useState(false)
   const [partnerProfileSyncMessage, setPartnerProfileSyncMessage] = useState('Partner profiles have not been synced yet')
   const [hasCompletedPartnerProfileStartupLoad, setHasCompletedPartnerProfileStartupLoad] = useState(false)
   const [isPartnerProfileAutoSaving, setIsPartnerProfileAutoSaving] = useState(false)
   const [partnerProfileAutoSaveMessage, setPartnerProfileAutoSaveMessage] = useState('Manual partner profile cloud save mode is active')
+  const [lastPartnerProfileCloudSyncAt, setLastPartnerProfileCloudSyncAt] = useState(null)
   const {
     supabaseAuthEmail,
     setSupabaseAuthEmail,
@@ -453,10 +464,12 @@ function App() {
 
         if (cloudLeads.length > 0) {
           setLeads(cloudLeads)
+          setLastLeadCloudSyncAt(new Date())
           setSupabaseLoadMessage(`Loaded ${cloudLeads.length} lead${cloudLeads.length === 1 ? '' : 's'} from Supabase.`)
         } else if (leadsRef.current.length > 0) {
           const savedLeads = await saveLeads(leadsRef.current)
           if (isCancelled) return
+          setLastLeadCloudSyncAt(new Date())
           setSupabaseLoadMessage(`Supabase was empty, so ${savedLeads.length} local lead${savedLeads.length === 1 ? '' : 's'} were saved as the first cloud copy.`)
         } else {
           setSupabaseLoadMessage('Supabase has no leads yet.')
@@ -464,10 +477,12 @@ function App() {
 
         if (cloudProfiles.length > 0) {
           setPartnerProfiles(partnerProfilesArrayToMap(cloudProfiles))
+          setLastPartnerProfileCloudSyncAt(new Date())
           setPartnerProfileSyncMessage(`Loaded ${cloudProfiles.length} partner profile${cloudProfiles.length === 1 ? '' : 's'} from Supabase.`)
         } else if (Object.keys(partnerProfilesRef.current).length > 0) {
           const savedProfiles = await savePartnerProfiles(partnerProfilesRef.current)
           if (isCancelled) return
+          setLastPartnerProfileCloudSyncAt(new Date())
           setPartnerProfileSyncMessage(`Supabase was empty, so ${savedProfiles.length} local partner profile${savedProfiles.length === 1 ? '' : 's'} were saved as the first cloud copy.`)
         } else {
           setPartnerProfileSyncMessage('Supabase has no partner profiles yet.')
@@ -517,6 +532,7 @@ function App() {
       setSupabaseBackupMessage(
         `Backup complete. ${savedLeads.length} lead${savedLeads.length === 1 ? '' : 's'} saved to Supabase on ${completedAt}.`,
       )
+      setLastLeadCloudSyncAt(new Date())
     } catch (error) {
       console.error('Supabase backup failed:', error)
       setSupabaseBackupMessage(error.message || 'Supabase backup failed. Check the browser console for details.')
@@ -533,6 +549,7 @@ function App() {
       const cloudLeads = await loadLeads()
       setLeads(cloudLeads)
       setHasCompletedCloudStartupLoad(true)
+      setLastLeadCloudSyncAt(new Date())
       setSupabaseAutoSaveMessage(isSupabaseSignedIn ? 'Cloud autosave is active' : 'Sign in to enable cloud autosave')
       setSupabaseLoadMessage(`Loaded ${cloudLeads.length} lead${cloudLeads.length === 1 ? '' : 's'} from Supabase into the app.`)
     } catch (error) {
@@ -557,6 +574,7 @@ function App() {
       }, {})
 
       const savedProfiles = await savePartnerProfiles(allPartnerProfiles)
+      setLastPartnerProfileCloudSyncAt(new Date())
       setPartnerProfiles((current) => ({
         ...allPartnerProfiles,
         ...current,
@@ -578,6 +596,7 @@ function App() {
       const cloudProfiles = await loadPartnerProfiles()
       setPartnerProfiles(partnerProfilesArrayToMap(cloudProfiles))
       setHasCompletedPartnerProfileStartupLoad(true)
+      setLastPartnerProfileCloudSyncAt(new Date())
       setPartnerProfileAutoSaveMessage(isSupabaseSignedIn ? 'Partner profile cloud autosave is active' : 'Sign in to enable partner profile cloud autosave')
       setPartnerProfileSyncMessage(`Loaded ${cloudProfiles.length} partner profile${cloudProfiles.length === 1 ? '' : 's'} from Supabase.`)
     } catch (error) {
@@ -628,6 +647,7 @@ function App() {
 
       try {
         const savedLeads = await saveLeads(leads)
+        setLastLeadCloudSyncAt(new Date())
         setSupabaseAutoSaveMessage(`Cloud autosave complete. ${savedLeads.length} lead${savedLeads.length === 1 ? '' : 's'} synced.`)
       } catch (error) {
         console.error('Supabase lead autosave failed:', error)
@@ -649,6 +669,7 @@ function App() {
 
       try {
         const savedProfiles = await savePartnerProfiles(partnerProfiles)
+        setLastPartnerProfileCloudSyncAt(new Date())
         setPartnerProfileAutoSaveMessage(`Partner profile cloud autosave complete. ${savedProfiles.length} profile${savedProfiles.length === 1 ? '' : 's'} synced.`)
       } catch (error) {
         console.error('Partner profile autosave failed:', error)
@@ -738,6 +759,60 @@ function App() {
   })
 
   const partnerTouchReminders = usePartnerTouchReminders(partnerProfiles)
+
+  const syncStatus = useMemo(() => {
+    if (!isSupabaseSignedIn) {
+      return {
+        label: 'Local Only',
+        detail: 'Sign in to sync',
+        tone: 'local',
+      }
+    }
+
+    if (isSupabaseLoadRunning || isPartnerProfileSyncRunning) {
+      return {
+        label: 'Loading Cloud',
+        detail: 'Supabase sync',
+        tone: 'loading',
+      }
+    }
+
+    if (isSupabaseAutoSaving || isPartnerProfileAutoSaving) {
+      return {
+        label: 'Saving',
+        detail: 'Cloud autosave',
+        tone: 'saving',
+      }
+    }
+
+    if (hasCompletedCloudStartupLoad && hasCompletedPartnerProfileStartupLoad) {
+      const lastSyncAt = [lastLeadCloudSyncAt, lastPartnerProfileCloudSyncAt]
+        .filter(Boolean)
+        .sort((a, b) => b - a)[0]
+
+      return {
+        label: 'Cloud Synced',
+        detail: lastSyncAt ? `Updated ${formatSyncTime(lastSyncAt)}` : 'Supabase active',
+        tone: 'synced',
+      }
+    }
+
+    return {
+      label: 'Cloud Pending',
+      detail: 'Open Cloud Sync',
+      tone: 'pending',
+    }
+  }, [
+    hasCompletedCloudStartupLoad,
+    hasCompletedPartnerProfileStartupLoad,
+    isPartnerProfileAutoSaving,
+    isPartnerProfileSyncRunning,
+    isSupabaseAutoSaving,
+    isSupabaseLoadRunning,
+    isSupabaseSignedIn,
+    lastLeadCloudSyncAt,
+    lastPartnerProfileCloudSyncAt,
+  ])
 
   const {
     openPartnerProfile,
@@ -1120,6 +1195,15 @@ function App() {
             Cloud Sync
           </button>
         </nav>
+        <button
+          type="button"
+          className={`sync-status-pill tone-${syncStatus.tone}`}
+          onClick={() => setActivePage('cloudSync')}
+          aria-label={`Cloud sync status: ${syncStatus.label}. ${syncStatus.detail}`}
+        >
+          <span>{syncStatus.label}</span>
+          <strong>{syncStatus.detail}</strong>
+        </button>
 
         {renderPage()}
       </main>
