@@ -5130,8 +5130,78 @@ input[type='date']::-webkit-datetime-edit {
   line-height: 1.7;
 }
 
+.cloud-sync-page .import-summary-card small {
+  display: block;
+  margin-top: 7px;
+  color: #64748b;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
 .cloud-sync-page .import-summary-card strong {
   font-size: 26px;
+}
+
+.install-app-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  border: 1px solid rgba(15, 118, 110, 0.14);
+  border-radius: 26px;
+  background:
+    linear-gradient(135deg, rgba(15, 118, 110, 0.1), rgba(249, 115, 22, 0.08)),
+    rgba(255, 255, 255, 0.9);
+  padding: 20px;
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+}
+
+.install-app-mark {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
+  background: #0f766e;
+  color: white;
+  font-size: 17px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  box-shadow: 0 14px 30px rgba(15, 118, 110, 0.22);
+}
+
+.install-app-card span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.install-app-card strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--navy);
+  font-size: 24px;
+  line-height: 1.1;
+}
+
+.install-app-card p,
+.install-app-card small {
+  display: block;
+  max-width: 680px;
+  margin: 7px 0 0;
+  color: #475569;
+  font-size: 14px;
+  font-weight: 750;
+  line-height: 1.5;
+}
+
+.install-app-card small {
+  color: #64748b;
+  font-size: 13px;
 }
 
 .cloud-sync-page .lead-form-grid {
@@ -5218,6 +5288,24 @@ input[type='date']::-webkit-datetime-edit {
 
   .cloud-sync-page .import-summary-card p {
     font-size: 14px;
+  }
+
+  .install-app-card {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 16px;
+    border-radius: 20px;
+  }
+
+  .install-app-mark {
+    width: 48px;
+    height: 48px;
+    border-radius: 15px;
+    font-size: 14px;
+  }
+
+  .install-app-card strong {
+    font-size: 20px;
   }
 
   .cloud-sync-page .form-card {

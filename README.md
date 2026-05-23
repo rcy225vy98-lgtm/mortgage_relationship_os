@@ -61,4 +61,6 @@ Deploy the app to a public HTTPS host so it works from cellular data or any netw
    - `CLIENT_ORIGIN`, set to your deployed app URL after the first deploy
 5. Deploy, then open the Vercel URL from your phone.
 
-After deployment, use Add to Home Screen from the phone browser to install it as a standalone app.
+After deployment, open `https://mortgage-relationship-os.vercel.app` from your phone and use Add to Home Screen from the phone browser to install it as a standalone app.
+
+On iPhone, use Safari for the install step: Share, then Add to Home Screen. On Android, Chrome may show an Install App button in the browser menu or inside the CRM Cloud Sync screen.

@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react'
+
 function CloudSyncPage(props) {
   const {
     setActivePage,
@@ -38,6 +40,57 @@ function CloudSyncPage(props) {
     isPartnerProfileSyncRunning,
     loadPartnerProfilesFromSupabaseManually,
   } = props
+  const [installPromptEvent, setInstallPromptEvent] = useState(null)
+  const [isInstalledApp, setIsInstalledApp] = useState(false)
+  const [installMessage, setInstallMessage] = useState('Ready for phone home-screen install.')
+
+  useEffect(() => {
+    const standaloneQuery = window.matchMedia('(display-mode: standalone)')
+
+    function updateInstalledState() {
+      setIsInstalledApp(standaloneQuery.matches || window.navigator.standalone === true)
+    }
+
+    function handleBeforeInstallPrompt(event) {
+      event.preventDefault()
+      setInstallPromptEvent(event)
+      setInstallMessage('This browser can install Mortgage OS directly.')
+    }
+
+    updateInstalledState()
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+
+    if (standaloneQuery.addEventListener) {
+      standaloneQuery.addEventListener('change', updateInstalledState)
+    } else {
+      standaloneQuery.addListener(updateInstalledState)
+    }
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+
+      if (standaloneQuery.removeEventListener) {
+        standaloneQuery.removeEventListener('change', updateInstalledState)
+      } else {
+        standaloneQuery.removeListener(updateInstalledState)
+      }
+    }
+  }, [])
+
+  async function installAppFromPrompt() {
+    if (!installPromptEvent) return
+
+    installPromptEvent.prompt()
+    const choice = await installPromptEvent.userChoice
+
+    if (choice?.outcome === 'accepted') {
+      setInstallPromptEvent(null)
+      setInstallMessage('Mortgage OS was added to this device.')
+      setIsInstalledApp(true)
+    } else {
+      setInstallMessage('Install was dismissed. You can still add it from the browser menu.')
+    }
+  }
 
   function exportLeadsToJson() {
     const exportedAt = new Date().toISOString()
@@ -144,6 +197,25 @@ function CloudSyncPage(props) {
           <span>Partner Profiles</span>
           <strong>{isPartnerProfileAutoSaving ? 'Saving' : hasCompletedPartnerProfileStartupLoad ? 'Synced' : 'Local'}</strong>
         </div>
+      </div>
+
+      <div className="install-app-card">
+        <div className="install-app-mark" aria-hidden="true">
+          OS
+        </div>
+        <div>
+          <span>Phone App</span>
+          <strong>{isInstalledApp ? 'Installed App Mode' : 'Add to Home Screen'}</strong>
+          <p>{isInstalledApp ? 'You are running Mortgage OS from the home-screen app shell.' : installMessage}</p>
+          {!isInstalledApp && (
+            <small>iPhone: open the Vercel URL in Safari, tap Share, then Add to Home Screen.</small>
+          )}
+        </div>
+        {installPromptEvent && !isInstalledApp && (
+          <button type="button" className="primary-button" onClick={installAppFromPrompt}>
+            Install App
+          </button>
+        )}
       </div>
 
       <div className="import-summary-card preview">

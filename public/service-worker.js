@@ -1,5 +1,14 @@
-const CACHE_NAME = 'mortgage-relationship-os-v1'
-const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/favicon.svg', '/app-icon.svg']
+const CACHE_NAME = 'mortgage-relationship-os-v2'
+const APP_SHELL = [
+  '/',
+  '/index.html',
+  '/manifest.webmanifest',
+  '/favicon.svg',
+  '/app-icon.svg',
+  '/app-icon-192.png',
+  '/app-icon-512.png',
+  '/apple-touch-icon.png',
+]
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
