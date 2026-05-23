@@ -380,6 +380,8 @@ function App() {
   })
   const [focusedLeadId, setFocusedLeadId] = useState(null)
   const focusedLeadIdRef = useRef(null)
+  const leadsRef = useRef(leads)
+  const partnerProfilesRef = useRef(partnerProfiles)
   const [supabaseTestMessage, setSupabaseTestMessage] = useState('Not tested yet')
   const [isSupabaseTesting, setIsSupabaseTesting] = useState(false)
   const [isSupabaseBackupRunning, setIsSupabaseBackupRunning] = useState(false)
@@ -387,7 +389,7 @@ function App() {
   const [isSupabaseLoadRunning, setIsSupabaseLoadRunning] = useState(false)
   const [supabaseLoadMessage, setSupabaseLoadMessage] = useState('No cloud load run yet')
   const [hasCompletedCloudStartupLoad, setHasCompletedCloudStartupLoad] = useState(false)
-  const [isSupabaseAutoSaving] = useState(false)
+  const [isSupabaseAutoSaving, setIsSupabaseAutoSaving] = useState(false)
   const [supabaseAutoSaveMessage, setSupabaseAutoSaveMessage] = useState('Manual cloud save mode is active')
   const [isPartnerProfileSyncRunning, setIsPartnerProfileSyncRunning] = useState(false)
   const [partnerProfileSyncMessage, setPartnerProfileSyncMessage] = useState('Partner profiles have not been synced yet')
@@ -401,6 +403,7 @@ function App() {
     setSupabaseAuthPassword,
     supabaseAuthMessage,
     isSupabaseAuthLoading,
+    isSupabaseSignedIn,
     signInToSupabase,
     createSupabaseAccount,
     signOutOfSupabase,
@@ -411,6 +414,14 @@ function App() {
   }, [focusedLeadId])
 
   useEffect(() => {
+    leadsRef.current = leads
+  }, [leads])
+
+  useEffect(() => {
+    partnerProfilesRef.current = partnerProfiles
+  }, [partnerProfiles])
+
+  useEffect(() => {
     if (focusedLeadIdRef.current) return
 
     window.scrollTo({
@@ -418,6 +429,77 @@ function App() {
       behavior: 'smooth',
     })
   }, [activePage])
+
+  useEffect(() => {
+    if (!isSupabaseSignedIn) {
+      return
+    }
+
+    let isCancelled = false
+
+    async function loadCloudDataOnSignIn() {
+      setIsSupabaseLoadRunning(true)
+      setIsPartnerProfileSyncRunning(true)
+      setSupabaseLoadMessage('Signed in. Loading cloud data...')
+      setPartnerProfileSyncMessage('Signed in. Loading partner profiles...')
+
+      try {
+        const [cloudLeads, cloudProfiles] = await Promise.all([
+          loadLeads(),
+          loadPartnerProfiles(),
+        ])
+
+        if (isCancelled) return
+
+        if (cloudLeads.length > 0) {
+          setLeads(cloudLeads)
+          setSupabaseLoadMessage(`Loaded ${cloudLeads.length} lead${cloudLeads.length === 1 ? '' : 's'} from Supabase.`)
+        } else if (leadsRef.current.length > 0) {
+          const savedLeads = await saveLeads(leadsRef.current)
+          if (isCancelled) return
+          setSupabaseLoadMessage(`Supabase was empty, so ${savedLeads.length} local lead${savedLeads.length === 1 ? '' : 's'} were saved as the first cloud copy.`)
+        } else {
+          setSupabaseLoadMessage('Supabase has no leads yet.')
+        }
+
+        if (cloudProfiles.length > 0) {
+          setPartnerProfiles(partnerProfilesArrayToMap(cloudProfiles))
+          setPartnerProfileSyncMessage(`Loaded ${cloudProfiles.length} partner profile${cloudProfiles.length === 1 ? '' : 's'} from Supabase.`)
+        } else if (Object.keys(partnerProfilesRef.current).length > 0) {
+          const savedProfiles = await savePartnerProfiles(partnerProfilesRef.current)
+          if (isCancelled) return
+          setPartnerProfileSyncMessage(`Supabase was empty, so ${savedProfiles.length} local partner profile${savedProfiles.length === 1 ? '' : 's'} were saved as the first cloud copy.`)
+        } else {
+          setPartnerProfileSyncMessage('Supabase has no partner profiles yet.')
+        }
+
+        setHasCompletedCloudStartupLoad(true)
+        setHasCompletedPartnerProfileStartupLoad(true)
+        setSupabaseAutoSaveMessage('Cloud autosave is active')
+        setPartnerProfileAutoSaveMessage('Partner profile cloud autosave is active')
+      } catch (error) {
+        console.error('Supabase startup load failed:', error)
+        if (!isCancelled) {
+          setSupabaseLoadMessage(error.message || 'Cloud startup load failed. Local fallback is still available.')
+          setPartnerProfileSyncMessage(error.message || 'Partner profile startup load failed. Local fallback is still available.')
+          setSupabaseAutoSaveMessage('Cloud autosave is paused until startup load succeeds')
+          setPartnerProfileAutoSaveMessage('Partner profile cloud autosave is paused until startup load succeeds')
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsSupabaseLoadRunning(false)
+          setIsPartnerProfileSyncRunning(false)
+        }
+      }
+    }
+
+    loadCloudDataOnSignIn()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [isSupabaseSignedIn])
+
   async function backupCurrentLeadsToSupabase() {
     setIsSupabaseBackupRunning(true)
     setSupabaseBackupMessage('Backing up current local leads to Supabase...')
@@ -451,7 +533,7 @@ function App() {
       const cloudLeads = await loadLeads()
       setLeads(cloudLeads)
       setHasCompletedCloudStartupLoad(true)
-      setSupabaseAutoSaveMessage('Manual cloud save mode is active')
+      setSupabaseAutoSaveMessage(isSupabaseSignedIn ? 'Cloud autosave is active' : 'Sign in to enable cloud autosave')
       setSupabaseLoadMessage(`Loaded ${cloudLeads.length} lead${cloudLeads.length === 1 ? '' : 's'} from Supabase into the app.`)
     } catch (error) {
       console.error('Supabase load failed:', error)
@@ -496,7 +578,7 @@ function App() {
       const cloudProfiles = await loadPartnerProfiles()
       setPartnerProfiles(partnerProfilesArrayToMap(cloudProfiles))
       setHasCompletedPartnerProfileStartupLoad(true)
-      setPartnerProfileAutoSaveMessage('Manual partner profile cloud save mode is active')
+      setPartnerProfileAutoSaveMessage(isSupabaseSignedIn ? 'Partner profile cloud autosave is active' : 'Sign in to enable partner profile cloud autosave')
       setPartnerProfileSyncMessage(`Loaded ${cloudProfiles.length} partner profile${cloudProfiles.length === 1 ? '' : 's'} from Supabase.`)
     } catch (error) {
       console.error('Partner profile load failed:', error)
@@ -537,7 +619,47 @@ function App() {
     return () => window.clearTimeout(saveTimer)
   }, [partnerProfiles])
 
-  // Supabase leads auto-save effect removed for manual cloud save mode.
+  useEffect(() => {
+    if (!isSupabaseSignedIn || !hasCompletedCloudStartupLoad) return
+
+    const saveTimer = window.setTimeout(async () => {
+      setIsSupabaseAutoSaving(true)
+      setSupabaseAutoSaveMessage('Saving leads to Supabase...')
+
+      try {
+        const savedLeads = await saveLeads(leads)
+        setSupabaseAutoSaveMessage(`Cloud autosave complete. ${savedLeads.length} lead${savedLeads.length === 1 ? '' : 's'} synced.`)
+      } catch (error) {
+        console.error('Supabase lead autosave failed:', error)
+        setSupabaseAutoSaveMessage(error.message || 'Lead cloud autosave failed. Local fallback is still saved.')
+      } finally {
+        setIsSupabaseAutoSaving(false)
+      }
+    }, 2500)
+
+    return () => window.clearTimeout(saveTimer)
+  }, [leads, isSupabaseSignedIn, hasCompletedCloudStartupLoad])
+
+  useEffect(() => {
+    if (!isSupabaseSignedIn || !hasCompletedPartnerProfileStartupLoad) return
+
+    const saveTimer = window.setTimeout(async () => {
+      setIsPartnerProfileAutoSaving(true)
+      setPartnerProfileAutoSaveMessage('Saving partner profiles to Supabase...')
+
+      try {
+        const savedProfiles = await savePartnerProfiles(partnerProfiles)
+        setPartnerProfileAutoSaveMessage(`Partner profile cloud autosave complete. ${savedProfiles.length} profile${savedProfiles.length === 1 ? '' : 's'} synced.`)
+      } catch (error) {
+        console.error('Partner profile autosave failed:', error)
+        setPartnerProfileAutoSaveMessage(error.message || 'Partner profile cloud autosave failed. Local fallback is still saved.')
+      } finally {
+        setIsPartnerProfileAutoSaving(false)
+      }
+    }, 2500)
+
+    return () => window.clearTimeout(saveTimer)
+  }, [partnerProfiles, isSupabaseSignedIn, hasCompletedPartnerProfileStartupLoad])
 
   const {
     activeLeads,

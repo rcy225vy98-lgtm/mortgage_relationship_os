@@ -116,7 +116,7 @@ function CloudSyncPage(props) {
         <div>
           <span>System Maintenance</span>
           <h2>Cloud Sync Status</h2>
-          <p>Monitor Supabase cloud backup, startup loading, and auto-save health.</p>
+          <p>Sign in once, then Supabase becomes the primary data home for laptop and phone.</p>
         </div>
         <button type="button" className="ghost-button" onClick={() => setActivePage('dashboard')}>
           Back to Dashboard
@@ -126,7 +126,7 @@ function CloudSyncPage(props) {
       <div className="production-metric-grid">
         <div className="production-metric primary">
           <span>Cloud Sync</span>
-          <strong>{hasCompletedCloudStartupLoad ? 'Active' : 'Inactive'}</strong>
+          <strong>{hasCompletedCloudStartupLoad ? 'Active' : 'Sign In'}</strong>
         </div>
         <div className="production-metric">
           <span>Auth Status</span>
@@ -138,7 +138,7 @@ function CloudSyncPage(props) {
         </div>
         <div className="production-metric">
           <span>Auto-Save</span>
-          <strong>{isSupabaseAutoSaving ? 'Saving' : 'Ready'}</strong>
+          <strong>{isSupabaseAutoSaving ? 'Saving' : hasCompletedCloudStartupLoad ? 'Ready' : 'Paused'}</strong>
         </div>
         <div className="production-metric">
           <span>Partner Profiles</span>
@@ -149,7 +149,7 @@ function CloudSyncPage(props) {
       <div className="import-summary-card preview">
         <div>
           <span>Latest Cloud Messages</span>
-          <strong>Supabase Cloud Backup</strong>
+          <strong>Supabase Cloud Sync</strong>
           <p>{supabaseLoadMessage}</p>
           <small>{supabaseAutoSaveMessage}</small>
           <small>{supabaseTestMessage}</small>
@@ -265,10 +265,10 @@ function CloudSyncPage(props) {
             {isSupabaseTesting ? 'Testing...' : 'Test Supabase'}
           </button>
           <button type="button" className="primary-button" onClick={backupCurrentLeadsToSupabase} disabled={isSupabaseBackupRunning || isSupabaseAuthLoading || isSupabaseAutoSaving}>
-            {isSupabaseBackupRunning ? 'Backing Up...' : 'Backup Leads to Supabase'}
+            {isSupabaseBackupRunning ? 'Backing Up...' : 'Force Save Leads'}
           </button>
           <button type="button" className="ghost-button" onClick={loadLeadsFromSupabaseManually} disabled={isSupabaseLoadRunning || isSupabaseAuthLoading || isSupabaseAutoSaving}>
-            {isSupabaseLoadRunning ? 'Loading...' : 'Load Leads from Supabase'}
+            {isSupabaseLoadRunning ? 'Loading...' : 'Reload Leads'}
           </button>
           <button type="button" className="ghost-button" onClick={exportLeadsToCsv} disabled={leads.length === 0}>
             Export Leads CSV
@@ -277,10 +277,10 @@ function CloudSyncPage(props) {
             Export Leads JSON
           </button>
           <button type="button" className="primary-button" onClick={backupPartnerProfilesToSupabase} disabled={isPartnerProfileSyncRunning || isSupabaseAuthLoading || isSupabaseAutoSaving || isPartnerProfileAutoSaving}>
-            {isPartnerProfileSyncRunning ? 'Syncing...' : 'Backup Partner Profiles'}
+            {isPartnerProfileSyncRunning ? 'Syncing...' : 'Force Save Partner Profiles'}
           </button>
           <button type="button" className="ghost-button" onClick={loadPartnerProfilesFromSupabaseManually} disabled={isPartnerProfileSyncRunning || isSupabaseAuthLoading || isSupabaseAutoSaving || isPartnerProfileAutoSaving}>
-            {isPartnerProfileSyncRunning ? 'Syncing...' : 'Load Partner Profiles'}
+            {isPartnerProfileSyncRunning ? 'Syncing...' : 'Reload Partner Profiles'}
           </button>
         </div>
       </form>

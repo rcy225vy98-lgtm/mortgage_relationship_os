@@ -134,10 +134,17 @@ export async function getCurrentUser() {
 }
 
 export async function loadLeads() {
+  const user = await getCurrentUser()
   const supabase = await getSupabaseClient()
+
+  if (!user?.id) {
+    throw new Error('You must be signed in before loading leads.')
+  }
+
   const { data, error } = await supabase
     .from('leads')
     .select('*')
+    .eq('user_id', user.id)
     .order('updated_at', { ascending: false })
 
   if (error) throw error
@@ -189,11 +196,18 @@ export async function saveLeads(leads) {
 }
 
 export async function deleteLead(leadId) {
+  const user = await getCurrentUser()
   const supabase = await getSupabaseClient()
+
+  if (!user?.id) {
+    throw new Error('You must be signed in before deleting leads.')
+  }
+
   const { error } = await supabase
     .from('leads')
     .delete()
     .eq('id', leadId)
+    .eq('user_id', user.id)
 
   if (error) throw error
 

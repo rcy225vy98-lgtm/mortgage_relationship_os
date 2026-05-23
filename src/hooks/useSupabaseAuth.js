@@ -6,6 +6,8 @@ function useSupabaseAuth() {
   const [supabaseAuthPassword, setSupabaseAuthPassword] = useState('')
   const [supabaseAuthMessage, setSupabaseAuthMessage] = useState('Not signed in')
   const [isSupabaseAuthLoading, setIsSupabaseAuthLoading] = useState(false)
+  const [supabaseSession, setSupabaseSession] = useState(null)
+  const [supabaseUser, setSupabaseUser] = useState(null)
 
   useEffect(() => {
     let isMounted = true
@@ -17,6 +19,8 @@ function useSupabaseAuth() {
         if (error) throw error
 
         if (isMounted) {
+          setSupabaseSession(data?.session || null)
+          setSupabaseUser(data?.session?.user || null)
           const email = data?.session?.user?.email
           setSupabaseAuthMessage(email ? `Signed in as ${email}` : 'Not signed in')
         }
@@ -30,8 +34,17 @@ function useSupabaseAuth() {
 
     checkSupabaseSession()
 
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!isMounted) return
+
+      setSupabaseSession(session || null)
+      setSupabaseUser(session?.user || null)
+      setSupabaseAuthMessage(session?.user?.email ? `Signed in as ${session.user.email}` : 'Not signed in')
+    })
+
     return () => {
       isMounted = false
+      authListener?.subscription?.unsubscribe()
     }
   }, [])
 
@@ -49,6 +62,8 @@ function useSupabaseAuth() {
       if (error) throw error
 
       const email = data?.session?.user?.email || supabaseAuthEmail
+      setSupabaseSession(data?.session || null)
+      setSupabaseUser(data?.session?.user || null)
       setSupabaseAuthMessage(`Signed in as ${email}`)
     } catch (error) {
       console.error('Supabase sign in failed:', error)
@@ -90,6 +105,8 @@ function useSupabaseAuth() {
 
       if (error) throw error
 
+      setSupabaseSession(null)
+      setSupabaseUser(null)
       setSupabaseAuthMessage('Not signed in')
     } catch (error) {
       console.error('Supabase sign out failed:', error)
@@ -106,6 +123,9 @@ function useSupabaseAuth() {
     setSupabaseAuthPassword,
     supabaseAuthMessage,
     isSupabaseAuthLoading,
+    supabaseSession,
+    supabaseUser,
+    isSupabaseSignedIn: Boolean(supabaseUser),
     signInToSupabase,
     createSupabaseAccount,
     signOutOfSupabase,

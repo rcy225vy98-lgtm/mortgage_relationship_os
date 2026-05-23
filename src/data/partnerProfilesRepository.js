@@ -47,10 +47,17 @@ export async function getCurrentUser() {
 }
 
 export async function loadPartnerProfiles() {
+  const user = await getCurrentUser()
   const supabase = await getSupabaseClient()
+
+  if (!user?.id) {
+    throw new Error('You must be signed in before loading partner profiles.')
+  }
+
   const { data, error } = await supabase
     .from('partner_profiles')
     .select('*')
+    .eq('user_id', user.id)
     .order('partner_name', { ascending: true })
 
   if (error) throw error
