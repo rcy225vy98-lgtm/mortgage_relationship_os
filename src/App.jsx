@@ -9,7 +9,7 @@ import {
   loadPartnerProfiles,
   partnerProfilesArrayToMap,
   savePartnerProfiles,
-} from './data/partnerprofilesrepository'
+} from './data/partnerProfilesRepository'
 import CloudSyncPage from './pages/CloudSyncPage'
 import KpisPage from './pages/KpisPage'
 import PipelinePage from './pages/PipelinePage'

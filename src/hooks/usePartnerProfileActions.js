@@ -1,6 +1,6 @@
 
 
-import { savePartnerProfile } from '../data/partnerprofilesrepository'
+import { savePartnerProfile } from '../data/partnerProfilesRepository'
 
 function getEmptyPartnerTouchForm() {
   return {
