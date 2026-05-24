@@ -31,6 +31,8 @@ import './styles/app.css'
 
 const LEADS_STORAGE_KEY = 'mortgage_relationship_os_leads'
 const PARTNER_PROFILES_STORAGE_KEY = 'mortgage_relationship_os_partner_profiles'
+const APP_VERSION = import.meta.env.VITE_APP_VERSION || '0.0.0'
+const APP_COMMIT = import.meta.env.VITE_APP_COMMIT || 'local'
 
 
 function parseDateValue(dateValue) {
@@ -170,6 +172,24 @@ function formatSyncTime(dateValue) {
     hour: 'numeric',
     minute: '2-digit',
   }).format(dateValue)
+}
+
+function formatHealthTime(dateValue) {
+  if (!dateValue) return 'Not yet'
+
+  return new Intl.DateTimeFormat([], {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(dateValue)
+}
+
+function appendHealthTime(message, label, dateValue) {
+  const trimmedMessage = String(message || '').trim()
+  const normalizedMessage = /[.!?]$/.test(trimmedMessage) ? trimmedMessage : `${trimmedMessage}.`
+
+  return `${normalizedMessage} ${label}: ${formatHealthTime(dateValue)}.`
 }
 
 function getPartnerDisplayName(lead) {
@@ -397,16 +417,21 @@ function App() {
   const [supabaseBackupMessage, setSupabaseBackupMessage] = useState('No backup run yet')
   const [isSupabaseLoadRunning, setIsSupabaseLoadRunning] = useState(false)
   const [supabaseLoadMessage, setSupabaseLoadMessage] = useState('No cloud load run yet')
+  const [lastSupabaseHealthCheckAt, setLastSupabaseHealthCheckAt] = useState(null)
   const [hasCompletedCloudStartupLoad, setHasCompletedCloudStartupLoad] = useState(false)
   const [isSupabaseAutoSaving, setIsSupabaseAutoSaving] = useState(false)
   const [supabaseAutoSaveMessage, setSupabaseAutoSaveMessage] = useState('Manual cloud save mode is active')
   const [lastLeadCloudSyncAt, setLastLeadCloudSyncAt] = useState(null)
+  const [lastLocalLeadSaveAt, setLastLocalLeadSaveAt] = useState(null)
+  const [localLeadSaveMessage, setLocalLeadSaveMessage] = useState('Local backup has not saved in this session yet')
   const [isPartnerProfileSyncRunning, setIsPartnerProfileSyncRunning] = useState(false)
   const [partnerProfileSyncMessage, setPartnerProfileSyncMessage] = useState('Partner profiles have not been synced yet')
   const [hasCompletedPartnerProfileStartupLoad, setHasCompletedPartnerProfileStartupLoad] = useState(false)
   const [isPartnerProfileAutoSaving, setIsPartnerProfileAutoSaving] = useState(false)
   const [partnerProfileAutoSaveMessage, setPartnerProfileAutoSaveMessage] = useState('Manual partner profile cloud save mode is active')
   const [lastPartnerProfileCloudSyncAt, setLastPartnerProfileCloudSyncAt] = useState(null)
+  const [lastLocalPartnerProfileSaveAt, setLastLocalPartnerProfileSaveAt] = useState(null)
+  const [localPartnerProfileSaveMessage, setLocalPartnerProfileSaveMessage] = useState('Local partner profile backup has not saved in this session yet')
   const {
     supabaseAuthEmail,
     setSupabaseAuthEmail,
@@ -616,8 +641,11 @@ function App() {
     const saveTimer = window.setTimeout(() => {
       try {
         window.localStorage.setItem(LEADS_STORAGE_KEY, JSON.stringify(leads))
+        setLastLocalLeadSaveAt(new Date())
+        setLocalLeadSaveMessage(`Local lead backup saved. ${leads.length} lead${leads.length === 1 ? '' : 's'} available on this device.`)
       } catch (error) {
         console.error('Unable to save leads:', error)
+        setLocalLeadSaveMessage(error.message || 'Local lead backup failed. Cloud sync may still be available.')
       }
     }, 3000)
 
@@ -630,8 +658,11 @@ function App() {
     const saveTimer = window.setTimeout(() => {
       try {
         window.localStorage.setItem(PARTNER_PROFILES_STORAGE_KEY, JSON.stringify(partnerProfiles))
+        setLastLocalPartnerProfileSaveAt(new Date())
+        setLocalPartnerProfileSaveMessage(`Local partner profile backup saved. ${Object.keys(partnerProfiles).length} profile${Object.keys(partnerProfiles).length === 1 ? '' : 's'} available on this device.`)
       } catch (error) {
         console.error('Unable to save partner profiles:', error)
+        setLocalPartnerProfileSaveMessage(error.message || 'Local partner profile backup failed. Cloud sync may still be available.')
       }
     }, 3000)
 
@@ -814,6 +845,98 @@ function App() {
     lastPartnerProfileCloudSyncAt,
   ])
 
+  const appHealthChecks = useMemo(() => {
+    const hasSupabaseFailure = /failed|error|must be signed in/i.test(supabaseTestMessage)
+    const hasSuccessfulSupabaseTest = supabaseTestMessage.startsWith('Supabase connected')
+    const latestCloudSyncAt = [lastLeadCloudSyncAt, lastPartnerProfileCloudSyncAt]
+      .filter(Boolean)
+      .sort((a, b) => b - a)[0]
+
+    return [
+      {
+        label: 'Account',
+        status: isSupabaseSignedIn ? 'Signed In' : 'Local Only',
+        detail: isSupabaseSignedIn ? supabaseAuthMessage.replace('Signed in as ', '') : 'Sign in before relying on cloud sync.',
+        tone: isSupabaseSignedIn ? 'good' : 'warning',
+      },
+      {
+        label: 'Supabase',
+        status: isSupabaseTesting ? 'Testing' : hasSuccessfulSupabaseTest ? 'Reachable' : hasSupabaseFailure ? 'Needs Attention' : 'Not Tested',
+        detail: isSupabaseTesting ? 'Checking the lead table now.' : supabaseTestMessage,
+        tone: isSupabaseTesting ? 'busy' : hasSuccessfulSupabaseTest ? 'good' : hasSupabaseFailure ? 'danger' : 'neutral',
+      },
+      {
+        label: 'Cloud Startup',
+        status: hasCompletedCloudStartupLoad && hasCompletedPartnerProfileStartupLoad ? 'Complete' : isSupabaseSignedIn ? 'Pending' : 'Paused',
+        detail: hasCompletedCloudStartupLoad && hasCompletedPartnerProfileStartupLoad
+          ? `Latest cloud activity: ${formatHealthTime(latestCloudSyncAt)}`
+          : 'Cloud autosave waits until startup load completes.',
+        tone: hasCompletedCloudStartupLoad && hasCompletedPartnerProfileStartupLoad ? 'good' : isSupabaseSignedIn ? 'busy' : 'warning',
+      },
+      {
+        label: 'Build',
+        status: `v${APP_VERSION}`,
+        detail: `Commit ${APP_COMMIT}`,
+        tone: 'neutral',
+      },
+    ]
+  }, [
+    hasCompletedCloudStartupLoad,
+    hasCompletedPartnerProfileStartupLoad,
+    isSupabaseSignedIn,
+    isSupabaseTesting,
+    lastLeadCloudSyncAt,
+    lastPartnerProfileCloudSyncAt,
+    supabaseAuthMessage,
+    supabaseTestMessage,
+  ])
+
+  const saveConfidenceChecks = useMemo(() => {
+    const hasLocalLeadFailure = /failed|unable/i.test(localLeadSaveMessage)
+    const hasLocalProfileFailure = /failed|unable/i.test(localPartnerProfileSaveMessage)
+    const hasLeadCloudFailure = /failed|error/i.test(supabaseAutoSaveMessage)
+    const hasProfileCloudFailure = /failed|error/i.test(partnerProfileAutoSaveMessage)
+
+    return [
+      {
+        label: 'Local Lead Backup',
+        status: hasLocalLeadFailure ? 'Failed' : lastLocalLeadSaveAt ? 'Saved' : 'Waiting',
+        detail: appendHealthTime(localLeadSaveMessage, 'Last save', lastLocalLeadSaveAt),
+        tone: hasLocalLeadFailure ? 'danger' : lastLocalLeadSaveAt ? 'good' : 'neutral',
+      },
+      {
+        label: 'Local Profile Backup',
+        status: hasLocalProfileFailure ? 'Failed' : lastLocalPartnerProfileSaveAt ? 'Saved' : 'Waiting',
+        detail: appendHealthTime(localPartnerProfileSaveMessage, 'Last save', lastLocalPartnerProfileSaveAt),
+        tone: hasLocalProfileFailure ? 'danger' : lastLocalPartnerProfileSaveAt ? 'good' : 'neutral',
+      },
+      {
+        label: 'Cloud Lead Autosave',
+        status: isSupabaseAutoSaving ? 'Saving' : hasLeadCloudFailure ? 'Failed' : lastLeadCloudSyncAt ? 'Synced' : isSupabaseSignedIn ? 'Pending' : 'Paused',
+        detail: appendHealthTime(supabaseAutoSaveMessage, 'Last cloud save', lastLeadCloudSyncAt),
+        tone: isSupabaseAutoSaving ? 'busy' : hasLeadCloudFailure ? 'danger' : lastLeadCloudSyncAt ? 'good' : isSupabaseSignedIn ? 'neutral' : 'warning',
+      },
+      {
+        label: 'Cloud Profile Autosave',
+        status: isPartnerProfileAutoSaving ? 'Saving' : hasProfileCloudFailure ? 'Failed' : lastPartnerProfileCloudSyncAt ? 'Synced' : isSupabaseSignedIn ? 'Pending' : 'Paused',
+        detail: appendHealthTime(partnerProfileAutoSaveMessage, 'Last cloud save', lastPartnerProfileCloudSyncAt),
+        tone: isPartnerProfileAutoSaving ? 'busy' : hasProfileCloudFailure ? 'danger' : lastPartnerProfileCloudSyncAt ? 'good' : isSupabaseSignedIn ? 'neutral' : 'warning',
+      },
+    ]
+  }, [
+    isPartnerProfileAutoSaving,
+    isSupabaseAutoSaving,
+    isSupabaseSignedIn,
+    lastLeadCloudSyncAt,
+    lastLocalLeadSaveAt,
+    lastLocalPartnerProfileSaveAt,
+    lastPartnerProfileCloudSyncAt,
+    localLeadSaveMessage,
+    localPartnerProfileSaveMessage,
+    partnerProfileAutoSaveMessage,
+    supabaseAutoSaveMessage,
+  ])
+
   const {
     openPartnerProfile,
     mergePartnerNames,
@@ -870,9 +993,11 @@ function App() {
 
     try {
       await loadLeads()
+      setLastSupabaseHealthCheckAt(new Date())
       setSupabaseTestMessage('Supabase connected. Lead table is reachable.')
     } catch (error) {
       console.error('Supabase test failed:', error)
+      setLastSupabaseHealthCheckAt(new Date())
       setSupabaseTestMessage(error.message || 'Supabase test failed. Check the browser console for details.')
     } finally {
       setIsSupabaseTesting(false)
@@ -983,6 +1108,9 @@ function App() {
           isSupabaseAutoSaving={isSupabaseAutoSaving}
           isPartnerProfileAutoSaving={isPartnerProfileAutoSaving}
           hasCompletedPartnerProfileStartupLoad={hasCompletedPartnerProfileStartupLoad}
+          appHealthChecks={appHealthChecks}
+          saveConfidenceChecks={saveConfidenceChecks}
+          lastSupabaseHealthCheckAt={lastSupabaseHealthCheckAt}
           supabaseLoadMessage={supabaseLoadMessage}
           supabaseAutoSaveMessage={supabaseAutoSaveMessage}
           supabaseTestMessage={supabaseTestMessage}

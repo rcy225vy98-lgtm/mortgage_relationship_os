@@ -9,6 +9,9 @@ function CloudSyncPage(props) {
     isSupabaseAutoSaving,
     isPartnerProfileAutoSaving,
     hasCompletedPartnerProfileStartupLoad,
+    appHealthChecks,
+    saveConfidenceChecks,
+    lastSupabaseHealthCheckAt,
     supabaseLoadMessage,
     supabaseAutoSaveMessage,
     supabaseTestMessage,
@@ -197,6 +200,50 @@ function CloudSyncPage(props) {
           <span>Partner Profiles</span>
           <strong>{isPartnerProfileAutoSaving ? 'Saving' : hasCompletedPartnerProfileStartupLoad ? 'Synced' : 'Local'}</strong>
         </div>
+      </div>
+
+      <div className="app-health-grid">
+        <section className="app-health-card">
+          <div className="app-health-card-header">
+            <div>
+              <span>App Health</span>
+              <strong>System Readiness</strong>
+            </div>
+            <small>Health checked: {lastSupabaseHealthCheckAt ? new Date(lastSupabaseHealthCheckAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'Not yet'}</small>
+          </div>
+          <div className="health-check-list">
+            {appHealthChecks.map((check) => (
+              <div className={`health-check-row tone-${check.tone}`} key={check.label}>
+                <div>
+                  <span>{check.label}</span>
+                  <strong>{check.status}</strong>
+                </div>
+                <p>{check.detail}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="app-health-card">
+          <div className="app-health-card-header">
+            <div>
+              <span>Save Confidence</span>
+              <strong>Backup Signals</strong>
+            </div>
+            <small>Local plus cloud where signed in</small>
+          </div>
+          <div className="health-check-list">
+            {saveConfidenceChecks.map((check) => (
+              <div className={`health-check-row tone-${check.tone}`} key={check.label}>
+                <div>
+                  <span>{check.label}</span>
+                  <strong>{check.status}</strong>
+                </div>
+                <p>{check.detail}</p>
+              </div>
+            ))}
+          </div>
+        </section>
       </div>
 
       <div className="install-app-card">
