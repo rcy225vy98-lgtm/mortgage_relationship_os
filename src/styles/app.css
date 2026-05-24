@@ -6962,7 +6962,7 @@ input[type='date']::-webkit-datetime-edit {
 .serious-crm-shell .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .collapsed-lead-chips span,
 .serious-crm-shell .lead-pipeline-panel .reason-chip {
   border: 1px solid #c7d0dc !important;
-  border-radius: 0 !important;
+  border-radius: 999px !important;
   background: #f7f9fb !important;
   color: #334155 !important;
   padding: 5px 7px !important;
@@ -6994,10 +6994,10 @@ input[type='date']::-webkit-datetime-edit {
 }
 
 .serious-crm-shell .lead-pipeline-panel .lead-stats {
-  grid-template-columns: repeat(4, minmax(86px, 1fr)) !important;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)) !important;
   gap: 7px !important;
   width: 100% !important;
-  padding-right: 66px !important;
+  padding-right: 112px !important;
 }
 
 .serious-crm-shell .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .lead-stat-item,
@@ -7005,7 +7005,7 @@ input[type='date']::-webkit-datetime-edit {
 .serious-crm-shell .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .urgency-stat {
   min-height: 48px !important;
   border: 1px solid #d8e0ea !important;
-  border-radius: 0 !important;
+  border-radius: 14px !important;
   background: #f7f9fb !important;
   padding: 7px 8px !important;
   box-shadow: none !important;
@@ -7026,8 +7026,8 @@ input[type='date']::-webkit-datetime-edit {
 }
 
 .serious-crm-shell .lead-pipeline-panel .lead-summary-row {
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr) !important;
+  display: flex !important;
+  flex-wrap: wrap !important;
   gap: 8px !important;
   margin-top: 10px !important;
 }
@@ -7036,9 +7036,11 @@ input[type='date']::-webkit-datetime-edit {
 .serious-crm-shell .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .next-best-action-card,
 .serious-crm-shell .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .smart-follow-up-strip {
   width: 100% !important;
+  min-width: 240px !important;
+  flex: 1 1 300px !important;
   min-height: 48px !important;
   border: 1px solid #d8e0ea !important;
-  border-radius: 0 !important;
+  border-radius: 14px !important;
   background: #ffffff !important;
   color: #172033 !important;
   padding: 8px 10px !important;
@@ -7071,7 +7073,7 @@ input[type='date']::-webkit-datetime-edit {
 .serious-crm-shell .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .closing-focus-strip span {
   align-self: start !important;
   border: 1px solid #c7d0dc !important;
-  border-radius: 0 !important;
+  border-radius: 999px !important;
   background: #f7f9fb !important;
   color: #607086 !important;
   padding: 4px 6px !important;
@@ -7097,7 +7099,8 @@ input[type='date']::-webkit-datetime-edit {
 }
 
 .serious-crm-shell .lead-pipeline-panel .lead-actions {
-  gap: 0 !important;
+  gap: 7px !important;
+  flex-wrap: wrap !important;
   margin-top: 9px !important;
   border-top: 1px solid #d8e0ea !important;
   padding-top: 9px !important;
@@ -7107,7 +7110,7 @@ input[type='date']::-webkit-datetime-edit {
 .serious-crm-shell .lead-detail-panel-trigger {
   min-height: 28px !important;
   border: 1px solid #c7d0dc !important;
-  border-radius: 0 !important;
+  border-radius: 999px !important;
   background: #ffffff !important;
   color: #1f334d !important;
   padding: 6px 9px !important;
@@ -7116,15 +7119,17 @@ input[type='date']::-webkit-datetime-edit {
   box-shadow: none !important;
 }
 
-.serious-crm-shell .lead-pipeline-panel .lead-actions .small-button + .small-button {
-  border-left: 0 !important;
-}
-
 .serious-crm-shell .lead-pipeline-panel .lead-actions .small-button:last-child,
 .serious-crm-shell .lead-detail-panel-trigger {
   border-color: #224f79 !important;
   background: #2f6da3 !important;
   color: #ffffff !important;
+}
+
+.serious-crm-shell .lead-detail-panel-trigger {
+  top: 12px !important;
+  right: 12px !important;
+  min-width: 78px !important;
 }
 
 .serious-crm-shell .pipeline-detail-panel {
@@ -7280,7 +7285,7 @@ input[type='date']::-webkit-datetime-edit {
   }
 
   .serious-crm-shell .lead-pipeline-panel .lead-summary-row {
-    grid-template-columns: 1fr !important;
+    display: flex !important;
   }
 
   .serious-crm-shell .lead-pipeline-panel .next-best-action-card {
@@ -7289,6 +7294,52 @@ input[type='date']::-webkit-datetime-edit {
 
   .serious-crm-shell .lead-pipeline-panel .lead-actions .small-button {
     min-height: 42px !important;
-    border-radius: 0 !important;
+    border-radius: 999px !important;
+  }
+}
+
+/* Pipeline spacing correction: outer cards stay boxed, inner controls stay soft. */
+.serious-crm-shell .lead-pipeline-panel .lead-card-group {
+  position: relative !important;
+}
+
+.serious-crm-shell .lead-pipeline-panel .lead-detail-panel-trigger {
+  position: absolute !important;
+  top: 14px !important;
+  right: 14px !important;
+  z-index: 5 !important;
+  border-radius: 999px !important;
+}
+
+.serious-crm-shell .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .lead-stats,
+.serious-crm-shell .lead-pipeline-panel.density-compact .lead-card:not(.lead-card-expanded-detail) .lead-stats {
+  box-sizing: border-box !important;
+  width: calc(100% - 104px) !important;
+  padding-right: 0 !important;
+}
+
+.serious-crm-shell .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .lead-stat-item,
+.serious-crm-shell .lead-pipeline-panel.density-compact .lead-card:not(.lead-card-expanded-detail) .lead-stat-item {
+  border-radius: 14px !important;
+}
+
+.serious-crm-shell .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .collapsed-lead-chips span,
+.serious-crm-shell .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .next-best-action-card span,
+.serious-crm-shell .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .smart-follow-up-headline span,
+.serious-crm-shell .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .closing-focus-strip span,
+.serious-crm-shell .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .reason-chip,
+.serious-crm-shell .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .lead-actions .small-button {
+  border-radius: 999px !important;
+}
+
+@media (max-width: 980px) {
+  .serious-crm-shell .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .lead-topline,
+  .serious-crm-shell .lead-pipeline-panel.density-compact .lead-card:not(.lead-card-expanded-detail) .lead-topline {
+    grid-template-columns: 1fr !important;
+  }
+
+  .serious-crm-shell .lead-pipeline-panel .lead-card:not(.lead-card-expanded-detail) .lead-stats,
+  .serious-crm-shell .lead-pipeline-panel.density-compact .lead-card:not(.lead-card-expanded-detail) .lead-stats {
+    width: 100% !important;
   }
 }
