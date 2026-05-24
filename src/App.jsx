@@ -1255,7 +1255,6 @@ function App() {
         markTouchedToday={markTouchedToday}
         markPreApprovalReactivated={markPreApprovalReactivated}
         dashboardOverview={dashboardOverview}
-        metrics={metrics}
       />
     )
   }

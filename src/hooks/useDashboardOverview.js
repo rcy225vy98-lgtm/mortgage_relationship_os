@@ -5,8 +5,21 @@ function useDashboardOverview(activeLeads, partnerRows) {
     const currentYear = new Date().getFullYear()
     const currentMonth = new Date().getMonth()
 
+    function getLeadReferralDate(lead) {
+      return lead.referralDate
+        || lead.dateReferred
+        || lead.originalDateReferred
+        || lead.importedDateReferred
+        || lead.referral_date
+        || ''
+    }
+
     function getYear(dateValue) {
       if (!dateValue) return null
+      if (typeof dateValue === 'string') {
+        const yearMatch = dateValue.trim().match(/^(\d{4})-\d{1,2}-\d{1,2}/)
+        if (yearMatch) return Number(yearMatch[1])
+      }
       const date = new Date(dateValue)
       if (Number.isNaN(date.getTime())) return null
       return date.getFullYear()
@@ -33,11 +46,11 @@ function useDashboardOverview(activeLeads, partnerRows) {
     }
 
     const buyerLeads = activeLeads.filter((lead) => lead.leadType !== 'Agent Prospect')
-    const leadsThisYear = buyerLeads.filter((lead) => isThisYear(lead.referralDate)).length
-    const closedThisYear = buyerLeads.filter((lead) => lead.stage === 'Closed' && isThisYear(lead.closingDate || lead.lastTouch || lead.referralDate))
+    const leadsThisYear = buyerLeads.filter((lead) => isThisYear(getLeadReferralDate(lead))).length
+    const closedThisYear = buyerLeads.filter((lead) => lead.stage === 'Closed' && isThisYear(lead.closingDate || lead.lastTouch || getLeadReferralDate(lead)))
     const volumeClosedThisYear = closedThisYear.reduce((sum, lead) => sum + (Number(lead.loanAmount) || 0), 0)
-    const preQualifiedThisYear = buyerLeads.filter((lead) => (lead.stage === 'Pre-Approved' || lead.stage === 'Pre-Qualified') && isThisYear(lead.referralDate)).length
-    const dnqOrLostThisYear = buyerLeads.filter((lead) => (lead.stage === 'DNQ' || lead.stage === 'Other Lender' || lead.stage === 'Builder Lender') && isThisYear(lead.referralDate)).length
+    const preQualifiedThisYear = buyerLeads.filter((lead) => (lead.stage === 'Pre-Approved' || lead.stage === 'Pre-Qualified') && isThisYear(getLeadReferralDate(lead))).length
+    const dnqOrLostThisYear = buyerLeads.filter((lead) => (lead.stage === 'DNQ' || lead.stage === 'Other Lender' || lead.stage === 'Builder Lender') && isThisYear(getLeadReferralDate(lead))).length
     const closingThisMonth = buyerLeads.filter((lead) => (lead.stage === 'Refi' || lead.stage === 'Under Contract' || lead.stage === 'Conditional Approval' || lead.stage === 'Clear to Close') && isThisMonth(lead.closingDate)).length
     const futureClosingLeads = buyerLeads.filter((lead) => (lead.stage === 'Refi' || lead.stage === 'Under Contract' || lead.stage === 'Conditional Approval' || lead.stage === 'Clear to Close') && isFutureClosing(lead.closingDate))
     const futureClosings = futureClosingLeads.length

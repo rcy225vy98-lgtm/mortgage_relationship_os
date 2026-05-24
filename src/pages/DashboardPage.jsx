@@ -33,7 +33,6 @@ function DashboardPage({
   markTouchedToday,
   markPreApprovalReactivated,
   dashboardOverview,
-  metrics,
 }) {
   const appraisalAlerts = loanTimingOverview.appraisalAlerts || []
   const duePartnerTouches = partnerTouchReminders.due || []
@@ -130,8 +129,8 @@ function DashboardPage({
           <p>{followUpCount} borrower touch{followUpCount === 1 ? '' : 'es'} · {duePartnerTouches.length} partner touch{duePartnerTouches.length === 1 ? '' : 'es'}</p>
         </div>
         <div>
-          <span>Pipeline Active</span>
-          <strong>{metrics?.active || 0}</strong>
+          <span>{dashboardOverview.currentYear} Referrals</span>
+          <strong>{dashboardOverview.leadsThisYear}</strong>
           <p>{dashboardOverview.leadToPreQualifiedRate}% YTD lead-to-preapproval</p>
         </div>
         <div>
