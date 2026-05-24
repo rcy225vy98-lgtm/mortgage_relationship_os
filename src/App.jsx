@@ -1262,78 +1262,111 @@ function App() {
 
   return (
     <>
-      <main className="app-shell">
-        <nav className="app-nav" aria-label="Main navigation">
-          <button
-            type="button"
-            className={activePage === 'dashboard' ? 'nav-button active' : 'nav-button'}
-            onClick={() => setActivePage('dashboard')}
-          >
-            Dashboard
-          </button>
-          <button
-            type="button"
-            className={activePage === 'kpis' ? 'nav-button active' : 'nav-button'}
-            onClick={() => setActivePage('kpis')}
-          >
-            KPIs & Stats
-          </button>
-          <button
-            type="button"
-            className={activePage === 'pipeline' ? 'nav-button active' : 'nav-button'}
-            onClick={() => setActivePage('pipeline')}
-          >
-            Lead Pipeline
-          </button>
-          <button
-            type="button"
-            className={activePage === 'agentProspects' ? 'nav-button active' : 'nav-button'}
-            onClick={() => setActivePage('agentProspects')}
-          >
-            Agent Prospects
-          </button>
-          <button
-            type="button"
-            className={activePage === 'partners' ? 'nav-button active' : 'nav-button'}
-            onClick={() => setActivePage('partners')}
-          >
-            Referral Partners
-          </button>
-          {activePage === 'partnerProfile' && selectedPartnerProfile && (
+      <main className="app-shell serious-crm-shell">
+        <aside className="crm-sidebar" aria-label="Mortgage OS workspace">
+          <div className="crm-brand">
+            <strong>Mortgage OS</strong>
+            <span>Relationship CRM</span>
+          </div>
+
+          <nav className="app-nav" aria-label="Main navigation">
+            <span className="crm-nav-label">Workspace</span>
             <button
               type="button"
-              className="nav-button active"
-              onClick={() => setActivePage('partnerProfile')}
+              className={activePage === 'dashboard' ? 'nav-button active' : 'nav-button'}
+              onClick={() => setActivePage('dashboard')}
             >
-              Partner Profile
+              Dashboard
             </button>
-          )}
-          <button
-            type="button"
-            className={activePage === 'updates' ? 'nav-button active' : 'nav-button'}
-            onClick={() => setActivePage('updates')}
-          >
-            Weekly Updates
-          </button>
-          <button
-            type="button"
-            className={activePage === 'cloudSync' ? 'nav-button active' : 'nav-button'}
-            onClick={() => setActivePage('cloudSync')}
-          >
-            Cloud Sync
-          </button>
-        </nav>
-        <button
-          type="button"
-          className={`sync-status-pill tone-${syncStatus.tone}`}
-          onClick={() => setActivePage('cloudSync')}
-          aria-label={`Cloud sync status: ${syncStatus.label}. ${syncStatus.detail}`}
-        >
-          <span>{syncStatus.label}</span>
-          <strong>{syncStatus.detail}</strong>
-        </button>
+            <button
+              type="button"
+              className={activePage === 'pipeline' ? 'nav-button active' : 'nav-button'}
+              onClick={() => setActivePage('pipeline')}
+            >
+              Lead Pipeline
+            </button>
+            <button
+              type="button"
+              className={activePage === 'partners' ? 'nav-button active' : 'nav-button'}
+              onClick={() => setActivePage('partners')}
+            >
+              Referral Partners
+            </button>
+            <button
+              type="button"
+              className={activePage === 'agentProspects' ? 'nav-button active' : 'nav-button'}
+              onClick={() => setActivePage('agentProspects')}
+            >
+              Agent Prospects
+            </button>
+            <button
+              type="button"
+              className={activePage === 'kpis' ? 'nav-button active' : 'nav-button'}
+              onClick={() => setActivePage('kpis')}
+            >
+              KPIs & Stats
+            </button>
+            <button
+              type="button"
+              className={activePage === 'updates' ? 'nav-button active' : 'nav-button'}
+              onClick={() => setActivePage('updates')}
+            >
+              Weekly Updates
+            </button>
+            <button
+              type="button"
+              className={activePage === 'cloudSync' ? 'nav-button active' : 'nav-button'}
+              onClick={() => setActivePage('cloudSync')}
+            >
+              Cloud Sync
+            </button>
+            {activePage === 'partnerProfile' && selectedPartnerProfile && (
+              <button
+                type="button"
+                className="nav-button active"
+                onClick={() => setActivePage('partnerProfile')}
+              >
+                Partner Profile
+              </button>
+            )}
+          </nav>
 
-        {renderPage()}
+          <button
+            type="button"
+            className={`sync-status-pill tone-${syncStatus.tone}`}
+            onClick={() => setActivePage('cloudSync')}
+            aria-label={`Cloud sync status: ${syncStatus.label}. ${syncStatus.detail}`}
+          >
+            <span>{syncStatus.label}</span>
+            <strong>{syncStatus.detail}</strong>
+          </button>
+        </aside>
+
+        <section className="crm-workspace">
+          <header className="crm-topbar">
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  setActivePage('pipeline')
+                }
+              }}
+              placeholder="Search leads, partners, notes, tasks..."
+              aria-label="Search leads and pipeline"
+            />
+            <label className="crm-topbar-button">
+              Import Leads
+              <input type="file" accept=".csv,text/csv" onChange={importLeadTrackerFile} />
+            </label>
+            <button type="button" className="crm-topbar-button primary" onClick={() => setActivePage('pipeline')}>
+              Open Pipeline
+            </button>
+          </header>
+
+          {renderPage()}
+        </section>
       </main>
     </>
   )
