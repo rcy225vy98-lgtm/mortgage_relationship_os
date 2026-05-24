@@ -14,11 +14,6 @@ function getDashboardDateLabel() {
 
 function DashboardPage({
   dailyOperatingPrinciple,
-  importLeadTrackerFile,
-  pendingLeadImport,
-  cancelPendingLeadImport,
-  confirmPendingLeadImport,
-  leadImportSummary,
   formatCompactCurrency,
   weeklyOperatingRhythm,
   loanTimingOverview,
@@ -115,10 +110,6 @@ function DashboardPage({
         <div className="command-principle-card">
           <span>Operating Principle</span>
           <p>{dailyOperatingPrinciple}</p>
-          <label className="import-csv-button">
-            Import Lead Tracker CSV
-            <input type="file" accept=".csv,text/csv" onChange={importLeadTrackerFile} />
-          </label>
         </div>
       </section>
 
@@ -233,80 +224,6 @@ function DashboardPage({
           </div>
         </div>
       </section>
-
-      {pendingLeadImport && (
-        <section className="import-summary-card preview">
-          <div>
-            <span>Import Preview</span>
-            <strong>{pendingLeadImport.fileName}</strong>
-            <p>
-              Ready to import {pendingLeadImport.summary.totalImported} new lead{pendingLeadImport.summary.totalImported === 1 ? '' : 's'} from {pendingLeadImport.summary.totalCsvRows} CSV rows. {pendingLeadImport.summary.skippedDuplicates} duplicate{pendingLeadImport.summary.skippedDuplicates === 1 ? '' : 's'} will be skipped.
-            </p>
-          </div>
-          <div className="import-summary-metrics">
-            <div>
-              <span>Buyer Leads</span>
-              <strong>{pendingLeadImport.summary.buyerLeads}</strong>
-            </div>
-            <div>
-              <span>Closed</span>
-              <strong>{pendingLeadImport.summary.closed}</strong>
-            </div>
-            <div>
-              <span>Closing Dates</span>
-              <strong>{pendingLeadImport.summary.withClosingDate}</strong>
-            </div>
-            <div>
-              <span>Loan Volume</span>
-              <strong>{formatCompactCurrency(pendingLeadImport.summary.totalLoanAmount)}</strong>
-            </div>
-          </div>
-          <div className="import-preview-actions">
-            <button type="button" className="ghost-button" onClick={cancelPendingLeadImport}>
-              Cancel
-            </button>
-            <button type="button" className="primary-button" onClick={confirmPendingLeadImport}>
-              Import These Leads
-            </button>
-          </div>
-        </section>
-      )}
-
-      {leadImportSummary && (
-        <section className={leadImportSummary.error ? 'import-summary-card error' : 'import-summary-card'}>
-          <div>
-            <span>Last Import</span>
-            <strong>{leadImportSummary.fileName}</strong>
-            {leadImportSummary.error ? (
-              <p>{leadImportSummary.error}</p>
-            ) : (
-              <p>
-                Imported {leadImportSummary.totalImported} new leads from {leadImportSummary.totalCsvRows} CSV rows. Skipped {leadImportSummary.skippedDuplicates} duplicate{leadImportSummary.skippedDuplicates === 1 ? '' : 's'}.
-              </p>
-            )}
-          </div>
-          {!leadImportSummary.error && (
-            <div className="import-summary-metrics">
-              <div>
-                <span>Buyer Leads</span>
-                <strong>{leadImportSummary.buyerLeads}</strong>
-              </div>
-              <div>
-                <span>Closed</span>
-                <strong>{leadImportSummary.closed}</strong>
-              </div>
-              <div>
-                <span>Closing Dates</span>
-                <strong>{leadImportSummary.withClosingDate}</strong>
-              </div>
-              <div>
-                <span>Loan Volume</span>
-                <strong>{formatCompactCurrency(leadImportSummary.totalLoanAmount)}</strong>
-              </div>
-            </div>
-          )}
-        </section>
-      )}
 
       {/* Cloud Sync compact card removed */}
 

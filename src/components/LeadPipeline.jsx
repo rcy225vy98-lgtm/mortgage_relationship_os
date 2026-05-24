@@ -3,8 +3,6 @@ import { getLeadFollowUpPlan, getRecommendedNextTouchDate } from '../utils/caden
 import { saveLead as saveLeadToSupabase } from '../data/leadsRepository'
 import LeadCard from './LeadCard'
 
-const MESSAGE_FEEDBACK_STORAGE_KEY = 'crm-message-feedback-v1'
-
 const MemoLeadCard = memo(LeadCard, (previousProps, nextProps) => {
   return previousProps.lead === nextProps.lead
 })
@@ -127,15 +125,6 @@ function hasReachedClosingDate(closingDate) {
   return !Number.isNaN(closing.getTime()) && closing <= today
 }
 
-function readMessageFeedback() {
-  try {
-    return JSON.parse(localStorage.getItem(MESSAGE_FEEDBACK_STORAGE_KEY)) || []
-  } catch (error) {
-    console.error('Unable to read message feedback:', error)
-    return []
-  }
-}
-
 function formatFeedbackDate(value) {
   if (!value) return '—'
 
@@ -148,18 +137,6 @@ function formatFeedbackDate(value) {
     year: 'numeric',
   })
 }
-
-function formatFeedbackType(type) {
-  if (type === 'needs-work') return 'Needs Work'
-  if (type === 'favorite') return 'Favorite'
-  if (type === 'used') return 'Used'
-  if (type === 'copied') return 'Copied'
-  if (type === 'improved') return 'Improved'
-
-  return type || 'Feedback'
-}
-
-
 
 function getStageOptionsForLeadType(leadType) {
   if (leadType === 'Agent Prospect') return agentProspectStageOptions
@@ -323,9 +300,6 @@ export default function LeadPipeline({
   const [showFilters, setShowFilters] = useState(false)
   const [bulkActionsOpen, setBulkActionsOpen] = useState(false)
   const [selectedLeadIds, setSelectedLeadIds] = useState([])
-  const [messageFeedbackItems, setMessageFeedbackItems] = useState(() => readMessageFeedback())
-  const [messageFeedbackFilter, setMessageFeedbackFilter] = useState('all')
-  const [cardDensity, setCardDensity] = useState('compact')
   const [selectedLeadId, setSelectedLeadId] = useState(null)
   const [detailTouchLoggerOpen, setDetailTouchLoggerOpen] = useState(false)
   const [detailTouchDraft, setDetailTouchDraft] = useState({
@@ -364,15 +338,18 @@ export default function LeadPipeline({
     })
   }, [filteredLeads])
 
+  const preApprovedLeads = useMemo(() => {
+    return filteredLeads.filter((lead) => ['Pre-Approved', 'Pre-Qualified'].includes(lead.stage || lead.status))
+  }, [filteredLeads])
+
+  const inProcessLeads = useMemo(() => {
+    return filteredLeads.filter((lead) => ['Application Started', 'Connected, Needs Application', 'Waiting on Docs', 'Documentation', 'Refi', 'Under Contract', 'Conditional Approval', 'Clear to Close'].includes(lead.stage || lead.status))
+  }, [filteredLeads])
+
   const closedLeads = useMemo(() => {
     return filteredLeads.filter((lead) => lead.stage === 'Closed' || lead.status === 'Closed')
   }, [filteredLeads])
   const pipelineSummaryMetrics = useMemo(() => {
-    const activePipelineLeads = filteredLeads.filter((lead) => !['Closed', 'DNQ', 'Other Lender', 'Builder Lender', 'Not Interested'].includes(lead.stage || lead.status))
-    const pastDueLeads = filteredLeads.filter((lead) => getLeadFollowUpPlan(lead).priority === 'Urgent')
-    const missingNextTouchLeads = filteredLeads.filter((lead) => !lead.nextActionDate && !['Closed', 'DNQ', 'Other Lender', 'Builder Lender', 'Not Interested'].includes(lead.stage || lead.status))
-    const preApprovedLeads = filteredLeads.filter((lead) => (lead.stage || lead.status) === 'Pre-Approved')
-    const preApprovedVolume = preApprovedLeads.reduce((sum, lead) => sum + (Number(lead.loanAmount) || 0), 0)
     const soonClosingLeads = filteredLeads.filter((lead) => {
       if (!lead.closingDate) return false
 
@@ -387,14 +364,11 @@ export default function LeadPipeline({
     })
 
     return [
-      { label: 'Active Leads', value: activePipelineLeads.length, tone: 'navy' },
-      { label: 'Due Today', value: needsFollowUpLeads.length, tone: 'blue' },
-      { label: 'Past Due', value: pastDueLeads.length, tone: pastDueLeads.length > 0 ? 'red' : 'muted' },
-      { label: 'No Next Touch', value: missingNextTouchLeads.length, tone: missingNextTouchLeads.length > 0 ? 'red' : 'muted' },
-      { label: 'Pre-Approved Volume', value: preApprovedVolume ? `$${preApprovedVolume.toLocaleString()}` : '$0', tone: 'green' },
+      { label: 'Pre-Approved Leads', value: preApprovedLeads.length, tone: 'navy' },
+      { label: 'In Process', value: inProcessLeads.length, tone: 'blue' },
       { label: 'Closing Soon', value: soonClosingLeads.length, tone: 'gold' },
     ]
-  }, [filteredLeads, needsFollowUpLeads])
+  }, [filteredLeads, inProcessLeads.length, preApprovedLeads.length])
 
   const unsortedVisibleLeads = pipelineView === 'needsFollowUp'
     ? needsFollowUpLeads
@@ -402,15 +376,12 @@ export default function LeadPipeline({
       ? underContractLeads
       : pipelineView === 'refi'
         ? refiLeads
-        : pipelineView === 'closed'
-          ? closedLeads
-          : filteredLeads
+        : pipelineView === 'preApproved'
+          ? preApprovedLeads
+          : pipelineView === 'closed'
+            ? closedLeads
+            : filteredLeads
   const visibleLeads = useMemo(() => sortLeads(unsortedVisibleLeads, sortMode), [unsortedVisibleLeads, sortMode])
-  const filteredMessageFeedbackItems = useMemo(() => {
-    if (messageFeedbackFilter === 'all') return messageFeedbackItems
-
-    return messageFeedbackItems.filter((item) => item.feedbackType === messageFeedbackFilter)
-  }, [messageFeedbackItems, messageFeedbackFilter])
   const visibleLeadIds = useMemo(() => visibleLeads.map((lead) => lead.id), [visibleLeads])
   const selectedLead = useMemo(() => {
     if (!selectedLeadId) return null
@@ -433,6 +404,10 @@ export default function LeadPipeline({
 
     if (pipelineView === 'refi') {
       return `${visibleLeads.length} refinance file${visibleLeads.length === 1 ? '' : 's'} in this view. Sorted by ${sortLabel.toLowerCase()}.`
+    }
+
+    if (pipelineView === 'preApproved') {
+      return `${visibleLeads.length} pre-approved lead${visibleLeads.length === 1 ? '' : 's'} ready for shopping, strategy, or reactivation.`
     }
 
     if (pipelineView === 'closed') {
@@ -473,16 +448,6 @@ export default function LeadPipeline({
     }
   }, [focusedLeadId, setFocusedLeadId, setPartnerFilter, setQuery])
 
-  useEffect(() => {
-    if (pipelineView !== 'messageFeedback') return
-
-    const refreshTimer = window.setTimeout(() => {
-      setMessageFeedbackItems(readMessageFeedback())
-    }, 0)
-
-    return () => window.clearTimeout(refreshTimer)
-  }, [pipelineView])
-
   function toggleLeadSelection(leadId) {
     setSelectedLeadIds((current) => (
       current.includes(leadId)
@@ -503,10 +468,6 @@ export default function LeadPipeline({
   function clearSelectedLeads() {
     setSelectedLeadIds([])
     setBulkActionsOpen(false)
-  }
-
-  function refreshMessageFeedback() {
-    setMessageFeedbackItems(readMessageFeedback())
   }
 
   function deleteSelectedLeads() {
@@ -864,6 +825,7 @@ export default function LeadPipeline({
     const recentTouches = (selectedLead.touchHistory || []).slice(0, 6)
     const hasPhone = Boolean(selectedLead.phone)
     const hasEmail = Boolean(selectedLead.email)
+    const isClientFile = isClientLeadType(selectedLead.leadType || 'Buyer Lead')
     const isClosingFile = ['Refi', 'Under Contract', 'Conditional Approval', 'Clear to Close', 'Closed'].includes(stage)
 
     return (
@@ -1014,30 +976,40 @@ export default function LeadPipeline({
           </select>
         </div>
 
-        {isClosingFile && (
+        {isClientFile && (
           <div className="pipeline-detail-section">
             <div className="pipeline-detail-section-header">
               <strong>Loan Timing</strong>
-              <span>Closing and appraisal</span>
+              <span>Closing date and appraisal</span>
             </div>
-            <div className="pipeline-detail-grid compact">
-              <div>
-                <span>Closing</span>
-                <strong>{formatFeedbackDate(selectedLead.closingDate)}</strong>
+            <label className="pipeline-detail-date-control">
+              Close Date
+              <input
+                type="date"
+                value={selectedLead.closingDate || ''}
+                onChange={(event) => quickUpdateLead(selectedLead.id, { closingDate: event.target.value, closedDate: event.target.value })}
+              />
+            </label>
+            {isClosingFile && (
+              <div className="pipeline-detail-grid compact">
+                <div>
+                  <span>Closing</span>
+                  <strong>{formatFeedbackDate(selectedLead.closingDate)}</strong>
+                </div>
+                <div>
+                  <span>Appraisal</span>
+                  <strong>{selectedLead.appraisalReceived ? 'Received' : selectedLead.appraisalOrdered ? 'Ordered' : 'Not ordered'}</strong>
+                </div>
+                <div>
+                  <span>Appraisal Due</span>
+                  <strong>{formatFeedbackDate(selectedLead.appraisalDueDate)}</strong>
+                </div>
+                <div>
+                  <span>Loan Progress</span>
+                  <strong>{selectedLead.loanProgress || selectedLead.pipelineStatus || stage}</strong>
+                </div>
               </div>
-              <div>
-                <span>Appraisal</span>
-                <strong>{selectedLead.appraisalReceived ? 'Received' : selectedLead.appraisalOrdered ? 'Ordered' : 'Not ordered'}</strong>
-              </div>
-              <div>
-                <span>Appraisal Due</span>
-                <strong>{formatFeedbackDate(selectedLead.appraisalDueDate)}</strong>
-              </div>
-              <div>
-                <span>Loan Progress</span>
-                <strong>{selectedLead.loanProgress || selectedLead.pipelineStatus || stage}</strong>
-              </div>
-            </div>
+            )}
           </div>
         )}
 
@@ -1645,7 +1617,7 @@ export default function LeadPipeline({
   }
 
   return (
-    <div className={`panel lead-pipeline-panel density-${cardDensity}`}>
+    <div className="panel lead-pipeline-panel density-compact">
       <div className="panel-header">
         <div>
           <h2>{title}</h2>
@@ -1757,20 +1729,17 @@ export default function LeadPipeline({
               </button>
               <button
                 type="button"
+                className={pipelineView === 'preApproved' ? 'tab-button active' : 'tab-button'}
+                onClick={() => setPipelineView('preApproved')}
+              >
+                Pre-Approved <span>{preApprovedLeads.length}</span>
+              </button>
+              <button
+                type="button"
                 className={pipelineView === 'closed' ? 'tab-button active' : 'tab-button'}
                 onClick={() => setPipelineView('closed')}
               >
                 Closed <span>{closedLeads.length}</span>
-              </button>
-              <button
-                type="button"
-                className={pipelineView === 'messageFeedback' ? 'tab-button active' : 'tab-button'}
-                onClick={() => {
-                  setPipelineView('messageFeedback')
-                  setMessageFeedbackItems(readMessageFeedback())
-                }}
-              >
-                Messages <span>{messageFeedbackItems.length}</span>
               </button>
             </div>
 
@@ -1783,24 +1752,6 @@ export default function LeadPipeline({
               </select>
             </label>
 
-            {pipelineView !== 'messageFeedback' && (
-              <div className="pipeline-density-toggle" role="group" aria-label="Card density">
-                <button
-                  type="button"
-                  className={cardDensity === 'comfortable' ? 'active' : ''}
-                  onClick={() => setCardDensity('comfortable')}
-                >
-                  Comfortable
-                </button>
-                <button
-                  type="button"
-                  className={cardDensity === 'compact' ? 'active' : ''}
-                  onClick={() => setCardDensity('compact')}
-                >
-                  Compact
-                </button>
-              </div>
-            )}
           </div>
         </aside>
 
@@ -1814,102 +1765,13 @@ export default function LeadPipeline({
         ))}
       </div>
 
-      {pipelineView !== 'messageFeedback' && (
-        <div className="pipeline-view-context">
-          <p>{pipelineViewContext}</p>
-        </div>
-      )}
+      <div className="pipeline-view-context">
+        <p>{pipelineViewContext}</p>
+      </div>
 
       {showLeadForm && !editingLeadId && renderLeadForm()}
 
-      {pipelineView === 'messageFeedback' && (
-        <div className="message-feedback-review">
-          <div className="message-feedback-review-header">
-            <div>
-              <h3>Message Feedback</h3>
-              <p>Review the messages you copied, used, favorited, or marked as needing work. This is how we improve the local message engine over time.</p>
-            </div>
-            <button type="button" className="ghost-button small-button" onClick={refreshMessageFeedback}>
-              Refresh
-            </button>
-          </div>
-
-          <div className="message-feedback-filters" role="group" aria-label="Message feedback filters">
-            <button
-              type="button"
-              className={messageFeedbackFilter === 'all' ? 'active' : ''}
-              onClick={() => setMessageFeedbackFilter('all')}
-            >
-              All <span>{messageFeedbackItems.length}</span>
-            </button>
-            <button
-              type="button"
-              className={messageFeedbackFilter === 'favorite' ? 'active' : ''}
-              onClick={() => setMessageFeedbackFilter('favorite')}
-            >
-              Favorites <span>{messageFeedbackItems.filter((item) => item.feedbackType === 'favorite').length}</span>
-            </button>
-            <button
-              type="button"
-              className={messageFeedbackFilter === 'used' ? 'active' : ''}
-              onClick={() => setMessageFeedbackFilter('used')}
-            >
-              Used <span>{messageFeedbackItems.filter((item) => item.feedbackType === 'used').length}</span>
-            </button>
-            <button
-              type="button"
-              className={messageFeedbackFilter === 'improved' ? 'active' : ''}
-              onClick={() => setMessageFeedbackFilter('improved')}
-            >
-              Improved <span>{messageFeedbackItems.filter((item) => item.feedbackType === 'improved').length}</span>
-            </button>
-            <button
-              type="button"
-              className={messageFeedbackFilter === 'needs-work' ? 'active' : ''}
-              onClick={() => setMessageFeedbackFilter('needs-work')}
-            >
-              Needs Work <span>{messageFeedbackItems.filter((item) => item.feedbackType === 'needs-work').length}</span>
-            </button>
-            <button
-              type="button"
-              className={messageFeedbackFilter === 'copied' ? 'active' : ''}
-              onClick={() => setMessageFeedbackFilter('copied')}
-            >
-              Copied <span>{messageFeedbackItems.filter((item) => item.feedbackType === 'copied').length}</span>
-            </button>
-          </div>
-
-          {filteredMessageFeedbackItems.length > 0 ? (
-            <div className="message-feedback-list">
-              {filteredMessageFeedbackItems.map((item) => (
-                <article className={`message-feedback-item feedback-${item.feedbackType || 'saved'}`} key={item.id}>
-                  <div className="message-feedback-item-header">
-                    <span>{formatFeedbackType(item.feedbackType)}</span>
-                    <strong>{item.client || 'Unknown Lead'}</strong>
-                    <em>{formatFeedbackDate(item.createdAt)}</em>
-                  </div>
-                  <div className="message-feedback-meta">
-                    <span>{item.stage || 'No Stage'}</span>
-                    <span>{item.messageType === 'agentText' ? 'Agent Message' : 'Client Message'}</span>
-                    <span>{item.messageMode === 'template' ? 'Simple Template' : 'Personalized'}</span>
-                    {item.partner && <span>{item.partner}</span>}
-                  </div>
-                  <p className="message-feedback-message">{item.message}</p>
-                  {item.reason && <p className="message-feedback-reason">Why it was suggested: {item.reason}</p>}
-                </article>
-              ))}
-            </div>
-          ) : (
-            <div className="empty-state message-feedback-empty">
-              <strong>{messageFeedbackItems.length > 0 ? 'No feedback matches this filter.' : 'No message feedback saved yet.'}</strong>
-              <p>{messageFeedbackItems.length > 0 ? 'Try choosing a different feedback filter.' : 'Open a lead card, use Suggested Message, then mark a message as used, favorite, or needing work.'}</p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {pipelineView !== 'messageFeedback' && (
-        <div className="pipeline-workbar">
+      <div className="pipeline-workbar">
           <div className={showLeadCheckboxes ? 'bulk-lead-toolbar active' : 'bulk-lead-toolbar'}>
             {!showLeadCheckboxes ? (
               <button type="button" className="filter-menu-button" onClick={() => setBulkActionsOpen(true)}>
@@ -1938,10 +1800,8 @@ export default function LeadPipeline({
           </div>
 
         </div>
-      )}
 
-      {pipelineView !== 'messageFeedback' && (
-        <div className="lead-list">
+      <div className="lead-list">
           {visibleLeads.length > 0 ? (
             visibleLeads.map((lead) => {
               const isSelected = selectedLeadIds.includes(lead.id)
@@ -1991,15 +1851,16 @@ export default function LeadPipeline({
                   ? 'Under contract files will appear here when their stage is set to Under Contract.'
                   : pipelineView === 'refi'
                     ? 'Refinance files will appear here when their stage is set to Refi.'
+                    : pipelineView === 'preApproved'
+                      ? 'Pre-approved leads will appear here when their stage is Pre-Approved or Pre-Qualified.'
                     : pipelineView === 'closed'
                       ? 'Closed clients will appear here once leads are marked Closed.'
                       : 'Try adjusting your search or partner filter.'}</p>
             </div>
           )}
         </div>
-      )}
         </main>
-        {pipelineView !== 'messageFeedback' && renderLeadDetailPanel()}
+        {renderLeadDetailPanel()}
       </div>
     </div>
   )

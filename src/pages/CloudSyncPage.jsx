@@ -42,6 +42,12 @@ function CloudSyncPage(props) {
     backupPartnerProfilesToSupabase,
     isPartnerProfileSyncRunning,
     loadPartnerProfilesFromSupabaseManually,
+    importLeadTrackerFile,
+    pendingLeadImport,
+    cancelPendingLeadImport,
+    confirmPendingLeadImport,
+    leadImportSummary,
+    formatCompactCurrency,
   } = props
   const [installPromptEvent, setInstallPromptEvent] = useState(null)
   const [isInstalledApp, setIsInstalledApp] = useState(false)
@@ -264,6 +270,92 @@ function CloudSyncPage(props) {
           </button>
         )}
       </div>
+
+      <div className="import-summary-card preview">
+        <div>
+          <span>Lead Import</span>
+          <strong>Import Lead Tracker CSV</strong>
+          <p>Upload a CRM export here, preview the import, then confirm before new leads are added.</p>
+          <label className="import-csv-button">
+            Choose CSV File
+            <input type="file" accept=".csv,text/csv" onChange={importLeadTrackerFile} />
+          </label>
+        </div>
+      </div>
+
+      {pendingLeadImport && (
+        <section className="import-summary-card preview">
+          <div>
+            <span>Import Preview</span>
+            <strong>{pendingLeadImport.fileName}</strong>
+            <p>
+              Ready to import {pendingLeadImport.summary.totalImported} new lead{pendingLeadImport.summary.totalImported === 1 ? '' : 's'} from {pendingLeadImport.summary.totalCsvRows} CSV rows. {pendingLeadImport.summary.skippedDuplicates} duplicate{pendingLeadImport.summary.skippedDuplicates === 1 ? '' : 's'} will be skipped.
+            </p>
+          </div>
+          <div className="import-summary-metrics">
+            <div>
+              <span>Buyer Leads</span>
+              <strong>{pendingLeadImport.summary.buyerLeads}</strong>
+            </div>
+            <div>
+              <span>Closed</span>
+              <strong>{pendingLeadImport.summary.closed}</strong>
+            </div>
+            <div>
+              <span>Closing Dates</span>
+              <strong>{pendingLeadImport.summary.withClosingDate}</strong>
+            </div>
+            <div>
+              <span>Loan Volume</span>
+              <strong>{formatCompactCurrency(pendingLeadImport.summary.totalLoanAmount)}</strong>
+            </div>
+          </div>
+          <div className="import-preview-actions">
+            <button type="button" className="ghost-button" onClick={cancelPendingLeadImport}>
+              Cancel
+            </button>
+            <button type="button" className="primary-button" onClick={confirmPendingLeadImport}>
+              Import These Leads
+            </button>
+          </div>
+        </section>
+      )}
+
+      {leadImportSummary && (
+        <section className={leadImportSummary.error ? 'import-summary-card error' : 'import-summary-card'}>
+          <div>
+            <span>Last Import</span>
+            <strong>{leadImportSummary.fileName}</strong>
+            {leadImportSummary.error ? (
+              <p>{leadImportSummary.error}</p>
+            ) : (
+              <p>
+                Imported {leadImportSummary.totalImported} new leads from {leadImportSummary.totalCsvRows} CSV rows. Skipped {leadImportSummary.skippedDuplicates} duplicate{leadImportSummary.skippedDuplicates === 1 ? '' : 's'}.
+              </p>
+            )}
+          </div>
+          {!leadImportSummary.error && (
+            <div className="import-summary-metrics">
+              <div>
+                <span>Buyer Leads</span>
+                <strong>{leadImportSummary.buyerLeads}</strong>
+              </div>
+              <div>
+                <span>Closed</span>
+                <strong>{leadImportSummary.closed}</strong>
+              </div>
+              <div>
+                <span>Closing Dates</span>
+                <strong>{leadImportSummary.withClosingDate}</strong>
+              </div>
+              <div>
+                <span>Loan Volume</span>
+                <strong>{formatCompactCurrency(leadImportSummary.totalLoanAmount)}</strong>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
 
       <div className="import-summary-card preview">
         <div>

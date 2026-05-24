@@ -891,6 +891,10 @@ function App() {
     supabaseTestMessage,
   ])
 
+  function scrollToTop() {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   const saveConfidenceChecks = useMemo(() => {
     const hasLocalLeadFailure = /failed|unable/i.test(localLeadSaveMessage)
     const hasLocalProfileFailure = /failed|unable/i.test(localPartnerProfileSaveMessage)
@@ -1141,6 +1145,12 @@ function App() {
           backupPartnerProfilesToSupabase={backupPartnerProfilesToSupabase}
           isPartnerProfileSyncRunning={isPartnerProfileSyncRunning}
           loadPartnerProfilesFromSupabaseManually={loadPartnerProfilesFromSupabaseManually}
+          importLeadTrackerFile={importLeadTrackerFile}
+          pendingLeadImport={pendingLeadImport}
+          cancelPendingLeadImport={cancelPendingLeadImport}
+          confirmPendingLeadImport={confirmPendingLeadImport}
+          leadImportSummary={leadImportSummary}
+          formatCompactCurrency={formatCompactCurrency}
         />
       )
     }
@@ -1236,11 +1246,6 @@ function App() {
     return (
       <DashboardPage
         dailyOperatingPrinciple={dailyOperatingPrinciple}
-        importLeadTrackerFile={importLeadTrackerFile}
-        pendingLeadImport={pendingLeadImport}
-        cancelPendingLeadImport={cancelPendingLeadImport}
-        confirmPendingLeadImport={confirmPendingLeadImport}
-        leadImportSummary={leadImportSummary}
         formatCompactCurrency={formatCompactCurrency}
         weeklyOperatingRhythm={weeklyOperatingRhythm}
         loanTimingOverview={loanTimingOverview}
@@ -1355,10 +1360,6 @@ function App() {
               placeholder="Search leads, partners, notes, tasks..."
               aria-label="Search leads and pipeline"
             />
-            <label className="crm-topbar-button">
-              Import Leads
-              <input type="file" accept=".csv,text/csv" onChange={importLeadTrackerFile} />
-            </label>
             <button type="button" className="crm-topbar-button primary" onClick={() => setActivePage('pipeline')}>
               Open Pipeline
             </button>
@@ -1367,6 +1368,9 @@ function App() {
           {renderPage()}
         </section>
       </main>
+      <button type="button" className="mobile-back-to-top" onClick={scrollToTop}>
+        Back to Top
+      </button>
     </>
   )
 }

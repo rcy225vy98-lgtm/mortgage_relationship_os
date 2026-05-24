@@ -156,7 +156,7 @@ body {
 
 .crm-topbar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
   border: 1px solid #c7d0dc;
@@ -2613,7 +2613,7 @@ button {
 
 .domo-table-row {
   display: grid;
-  grid-template-columns: minmax(170px, 1.2fr) repeat(4, minmax(68px, 0.45fr)) minmax(76px, 0.45fr) minmax(90px, 0.65fr) repeat(2, minmax(58px, 0.4fr));
+  grid-template-columns: minmax(170px, 1.2fr) repeat(6, minmax(58px, 0.42fr)) minmax(76px, 0.45fr) minmax(90px, 0.65fr) repeat(2, minmax(58px, 0.4fr));
   gap: 10px;
   align-items: center;
   min-width: 940px;
@@ -6802,6 +6802,67 @@ input[type='date']::-webkit-datetime-edit {
   border-radius: 0 !important;
 }
 
+.serious-crm-shell .field input,
+.serious-crm-shell .field select,
+.serious-crm-shell .field textarea,
+.serious-crm-shell .pipeline-detail-date-control,
+.serious-crm-shell .pipeline-detail-date-control input,
+.serious-crm-shell .pipeline-detail-panel,
+.serious-crm-shell .pipeline-detail-header,
+.serious-crm-shell .pipeline-detail-next-action,
+.serious-crm-shell .pipeline-detail-section,
+.serious-crm-shell .pipeline-detail-grid > div,
+.serious-crm-shell .pipeline-detail-activity-list div,
+.serious-crm-shell .pipeline-detail-touch-logger,
+.serious-crm-shell .pipeline-rail-header,
+.serious-crm-shell .pipeline-rail-nav-button,
+.serious-crm-shell .pipeline-view-context,
+.serious-crm-shell .kpi-scorecard-strip div,
+.serious-crm-shell .kpi-bar-row,
+.serious-crm-shell .kpi-bar-track,
+.serious-crm-shell .volume-track,
+.serious-crm-shell .unit-track,
+.serious-crm-shell .monthly-lead-row,
+.serious-crm-shell .credit-trend-row,
+.serious-crm-shell .kpi-pace-stat,
+.serious-crm-shell .outcome-card,
+.serious-crm-shell .domo-mini-list div,
+.serious-crm-shell .domo-table-row,
+.serious-crm-shell .install-app-card,
+.serious-crm-shell .import-summary-metrics div,
+.serious-crm-shell .import-preview-actions,
+.serious-crm-shell .lead-form,
+.serious-crm-shell .cloud-maintenance-form {
+  border-radius: 0 !important;
+}
+
+.serious-crm-shell .pipeline-detail-date-control {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 12px;
+  color: #607086;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.serious-crm-shell .pipeline-detail-date-control input {
+  min-height: 40px;
+  border: 1px solid #c7d0dc;
+  background: #ffffff;
+  color: #172033;
+  padding: 8px 10px;
+  font-size: 14px;
+  font-weight: 760;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.mobile-back-to-top {
+  display: none;
+}
+
 @media (max-width: 980px) {
   .serious-crm-shell {
     overflow-x: hidden;
@@ -6809,5 +6870,23 @@ input[type='date']::-webkit-datetime-edit {
 
   .serious-crm-shell .weekly-rhythm-mini-list {
     grid-template-columns: 1fr !important;
+  }
+
+  .mobile-back-to-top {
+    position: fixed;
+    right: 14px;
+    bottom: 14px;
+    z-index: 80;
+    display: inline-grid;
+    place-items: center;
+    min-height: 42px;
+    border: 1px solid #224f79;
+    border-radius: 0;
+    background: #2f6da3;
+    color: #ffffff;
+    padding: 10px 13px;
+    font-size: 12px;
+    font-weight: 900;
+    box-shadow: 0 10px 24px rgba(23, 32, 51, 0.22);
   }
 }

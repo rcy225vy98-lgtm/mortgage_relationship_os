@@ -147,6 +147,8 @@ function KpisPage({ dashboardOverview, metrics, kpiAnalytics, formatCompactCurre
   const monthlyLeadRows = kpiAnalytics?.monthlyLeadRows || []
   const monthlyProductionRows = kpiAnalytics?.monthlyProductionRows || []
   const ytdLeadSourceRows = kpiAnalytics?.ytdLeadSourceRows || []
+  const loanTypeRows = kpiAnalytics?.loanTypeRows || []
+  const purchaseRefiRows = kpiAnalytics?.purchaseRefiRows || []
   const topPartnerRows = kpiAnalytics?.topPartnerRows || []
   const leadYearRows = kpiAnalytics?.leadYearRows || []
   const recentMonthlyLeadRows = monthlyLeadRows.slice(-12)
@@ -174,6 +176,34 @@ function KpisPage({ dashboardOverview, metrics, kpiAnalytics, formatCompactCurre
 
   return (
     <>
+      <section className="kpi-scorecard-strip">
+        <div>
+          <span>YTD Lead Count</span>
+          <strong>{kpiAnalytics?.ytdBuyerLeadCount || 0}</strong>
+          <em>{kpiAnalytics?.currentMonthLeadCount || 0} this month</em>
+        </div>
+        <div>
+          <span>YTD Pre-Approvals</span>
+          <strong>{kpiAnalytics?.ytdPreApprovalCount || 0}</strong>
+          <em>{kpiAnalytics?.ytdLeadToPreApprovalRate || 0}% of YTD leads</em>
+        </div>
+        <div>
+          <span>YTD In-Process</span>
+          <strong>{kpiAnalytics?.ytdActivePipelineCount || 0}</strong>
+          <em>{formatCompactCurrency(kpiAnalytics?.ytdActivePipelineVolume || 0)} active volume</em>
+        </div>
+        <div>
+          <span>YTD Closed</span>
+          <strong>{kpiAnalytics?.ytdClosedLoanCount || 0}</strong>
+          <em>{formatCompactCurrency(kpiAnalytics?.ytdClosedVolume || 0)} closed volume</em>
+        </div>
+        <div>
+          <span>YTD Fallout</span>
+          <strong>{kpiAnalytics?.ytdFalloutCount || 0}</strong>
+          <em>{kpiAnalytics?.ytdFalloutRate || 0}% of YTD leads</em>
+        </div>
+      </section>
+
       <section className="executive-summary-strip daily-business-brief kpi-summary-strip">
         <div>
           <span>Business Performance Brief</span>
@@ -182,37 +212,9 @@ function KpisPage({ dashboardOverview, metrics, kpiAnalytics, formatCompactCurre
               <strong>Production:</strong> {kpiAnalytics?.ytdClosedLoanCount || 0} YTD closings, {formatCompactCurrency(kpiAnalytics?.ytdClosedVolume || 0)} closed volume, and {formatCompactCurrency(kpiAnalytics?.ytdActivePipelineVolume || 0)} active contract-to-close volume.
             </p>
             <p>
-              <strong>Flow:</strong> {kpiAnalytics?.ytdBuyerLeadCount || 0} YTD buyer leads, {kpiAnalytics?.currentMonthLeadCount || 0} this month, {kpiAnalytics?.ytdPreApprovalCount || 0} pre-approved, and {metrics.needsAttention} follow-up item{metrics.needsAttention === 1 ? '' : 's'} due.
+              <strong>Flow:</strong> {kpiAnalytics?.ytdBuyerLeadCount || 0} YTD buyer leads, {kpiAnalytics?.currentMonthLeadCount || 0} this month, {kpiAnalytics?.ytdAverageLeadsPerMonth || 0} average per month, and {metrics.needsAttention} follow-up item{metrics.needsAttention === 1 ? '' : 's'} due.
             </p>
           </div>
-        </div>
-      </section>
-
-      <section className="kpi-scorecard-strip">
-        <div>
-          <span>YTD Leads</span>
-          <strong>{kpiAnalytics?.ytdBuyerLeadCount || 0}</strong>
-          <em>{kpiAnalytics?.currentMonthLeadCount || 0} this month</em>
-        </div>
-        <div>
-          <span>Pre-Approved</span>
-          <strong>{kpiAnalytics?.ytdPreApprovalCount || 0}</strong>
-          <em>{kpiAnalytics?.ytdLeadToPreApprovalRate || 0}% of YTD leads</em>
-        </div>
-        <div>
-          <span>Closed Units</span>
-          <strong>{kpiAnalytics?.ytdClosedLoanCount || 0}</strong>
-          <em>{kpiAnalytics?.ytdLeadToCloseRate || 0}% close rate</em>
-        </div>
-        <div>
-          <span>Closed Volume</span>
-          <strong>{formatCompactCurrency(kpiAnalytics?.ytdClosedVolume || 0)}</strong>
-          <em>{formatCompactCurrency(kpiAnalytics?.ytdAverageLoanAmount || 0)} avg lead</em>
-        </div>
-        <div>
-          <span>Fallout</span>
-          <strong>{kpiAnalytics?.ytdFalloutCount || 0}</strong>
-          <em>{kpiAnalytics?.ytdFalloutRate || 0}% of YTD leads</em>
         </div>
       </section>
 
@@ -239,6 +241,28 @@ function KpisPage({ dashboardOverview, metrics, kpiAnalytics, formatCompactCurre
             <span className="unit-key">Units</span>
           </div>
           <ProductionComboChart rows={recentProductionRows} formatCompactCurrency={formatCompactCurrency} />
+        </div>
+      </section>
+
+      <section className="kpi-chart-grid">
+        <div className="panel domo-card kpi-chart-card">
+          <div className="panel-header">
+            <div>
+              <h2>Loan Type Mix</h2>
+              <p>YTD closed loans by product type.</p>
+            </div>
+          </div>
+          <MiniBarChart rows={loanTypeRows} valueKey="count" />
+        </div>
+
+        <div className="panel domo-card kpi-chart-card">
+          <div className="panel-header">
+            <div>
+              <h2>Purchase vs Refi</h2>
+              <p>YTD closed production split.</p>
+            </div>
+          </div>
+          <MiniBarChart rows={purchaseRefiRows} valueKey="count" />
         </div>
       </section>
 
@@ -358,6 +382,10 @@ function KpisPage({ dashboardOverview, metrics, kpiAnalytics, formatCompactCurre
             <div className="kpi-pace-stat">
               <span>3-Month Avg</span>
               <strong>{kpiAnalytics?.trailingThreeMonthLeadAverage || 0}</strong>
+            </div>
+            <div className="kpi-pace-stat">
+              <span>YTD Avg / Month</span>
+              <strong>{kpiAnalytics?.ytdAverageLeadsPerMonth || 0}</strong>
             </div>
             <div className="kpi-pace-stat">
               <span>Vs Prior 3 Months</span>
@@ -642,6 +670,8 @@ function KpisPage({ dashboardOverview, metrics, kpiAnalytics, formatCompactCurre
               <span>Partner</span>
               <span>YTD Refs</span>
               <span>YTD Active</span>
+              <span>DNQ</span>
+              <span>Lost</span>
               <span>YTD Closed</span>
               <span>YTD Close %</span>
               <span>All Closed</span>
@@ -654,6 +684,8 @@ function KpisPage({ dashboardOverview, metrics, kpiAnalytics, formatCompactCurre
                 <strong>{row.partner}</strong>
                 <span>{row.ytdReferrals}</span>
                 <span>{row.ytdActivePipeline}</span>
+                <span>{row.dnq}</span>
+                <span>{row.lostToLenderBuilder}</span>
                 <span>{row.ytdClosed}</span>
                 <span>{row.ytdCloseRate}%</span>
                 <span>{row.closed}</span>

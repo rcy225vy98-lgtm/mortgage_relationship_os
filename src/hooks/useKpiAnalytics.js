@@ -7,6 +7,7 @@ const LOST_TO_LENDER_STAGES = ['Other Lender', 'Builder Lender']
 const EARLY_STAGE_STAGES = ['New Referral', 'Contact Attempted']
 const APPLICATION_STAGE_STAGES = ['Application Started', 'Connected, Needs Application', 'Waiting on Docs', 'Documentation']
 const PRE_APPROVAL_STAGES = ['Pre-Approved', 'Pre-Qualified']
+const IN_PROCESS_STAGES = [...APPLICATION_STAGE_STAGES, ...CONTRACT_TO_CLOSE_STAGES]
 const CREDIT_HISTORY_START = new Date(2025, 0, 1)
 
 function getLoanAmount(lead) {
@@ -153,6 +154,26 @@ function getLeadSourceLabel(lead) {
   return lead.leadSource || lead.source || lead.referralSource || 'Referral Partner'
 }
 
+function normalizeLoanType(lead) {
+  const loanText = `${lead.loanType || ''} ${lead.secondLienType || ''}`.toLowerCase()
+
+  if (loanText.includes('non') && loanText.includes('qm')) return 'NonQM'
+  if (loanText.includes('usda')) return 'USDA'
+  if (loanText.includes('fha')) return 'FHA'
+  if (loanText.includes('va')) return 'VA'
+  if (loanText.includes('dpa') || loanText.includes('down payment') || loanText.includes('second')) return 'DPA'
+  if (loanText.includes('conv')) return 'Conventional'
+
+  return 'Unspecified'
+}
+
+function normalizeLoanPurpose(lead) {
+  const purposeText = `${lead.loanPurpose || ''} ${lead.transactionType || ''} ${lead.loanType || ''} ${lead.stage || ''}`.toLowerCase()
+
+  if (purposeText.includes('refi') || purposeText.includes('refinance')) return 'Refi'
+  return 'Purchase'
+}
+
 function useKpiAnalytics(activeLeads, partnerRows, getPartnerDisplayName) {
   return useMemo(() => {
     const now = new Date()
@@ -165,6 +186,8 @@ function useKpiAnalytics(activeLeads, partnerRows, getPartnerDisplayName) {
     const ytdFundedFromYtdLeads = ytdBuyerLeads.filter((lead) => lead.stage === 'Closed')
     const contractToCloseLeads = buyerLeads.filter((lead) => CONTRACT_TO_CLOSE_STAGES.includes(lead.stage))
     const ytdContractToCloseLeads = ytdBuyerLeads.filter((lead) => CONTRACT_TO_CLOSE_STAGES.includes(lead.stage))
+    const inProcessLeads = buyerLeads.filter((lead) => IN_PROCESS_STAGES.includes(lead.stage))
+    const ytdInProcessLeads = ytdBuyerLeads.filter((lead) => IN_PROCESS_STAGES.includes(lead.stage))
     const falloutLeads = buyerLeads.filter((lead) => FALLOUT_STAGES.includes(lead.stage))
     const ytdFalloutLeads = ytdBuyerLeads.filter((lead) => FALLOUT_STAGES.includes(lead.stage))
     const lostToLenderLeads = buyerLeads.filter((lead) => LOST_TO_LENDER_STAGES.includes(lead.stage))
@@ -244,6 +267,8 @@ function useKpiAnalytics(activeLeads, partnerRows, getPartnerDisplayName) {
     const currentMonthLeadCount = monthlyLeadRows[monthlyLeadRows.length - 1]?.total || 0
     const lastMonthLeadCount = monthlyLeadRows[monthlyLeadRows.length - 2]?.total || 0
     const latestCreditAverageRow = [...monthlyLeadRows].reverse().find((row) => row.creditScoreAverage !== null)
+    const monthsElapsedThisYear = now.getMonth() + 1
+    const ytdAverageLeadsPerMonth = monthsElapsedThisYear ? Math.round((ytdBuyerLeads.length / monthsElapsedThisYear) * 10) / 10 : 0
 
     const stageRows = [
       { label: 'New / Attempted Contact', count: getPartnerLeadCountByStage(buyerLeads, EARLY_STAGE_STAGES), ytdCount: getPartnerLeadCountByStage(ytdBuyerLeads, EARLY_STAGE_STAGES) },
@@ -271,9 +296,11 @@ function useKpiAnalytics(activeLeads, partnerRows, getPartnerDisplayName) {
       const fallout = partnerLeads.filter((lead) => FALLOUT_STAGES.includes(lead.stage))
       const ytdFallout = ytdPartnerLeads.filter((lead) => FALLOUT_STAGES.includes(lead.stage))
       const dnq = partnerLeads.filter((lead) => lead.stage === 'DNQ')
+      const ytdDnq = ytdPartnerLeads.filter((lead) => lead.stage === 'DNQ')
       const otherLender = partnerLeads.filter((lead) => lead.stage === 'Other Lender')
       const builderLender = partnerLeads.filter((lead) => lead.stage === 'Builder Lender')
-      const cold = partnerLeads.filter((lead) => EARLY_STAGE_STAGES.includes(lead.stage))
+      const lostToLenderBuilder = [...otherLender, ...builderLender]
+      const ytdLostToLenderBuilder = ytdPartnerLeads.filter((lead) => LOST_TO_LENDER_STAGES.includes(lead.stage))
       const projectedVolume = activePipeline.reduce((sum, lead) => sum + getLoanAmount(lead), 0)
       const ytdProjectedVolume = ytdActivePipeline.reduce((sum, lead) => sum + getLoanAmount(lead), 0)
       const closedVolume = closed.reduce((sum, lead) => sum + getLoanAmount(lead), 0)
@@ -283,7 +310,13 @@ function useKpiAnalytics(activeLeads, partnerRows, getPartnerDisplayName) {
       const closeRate = referralCount ? Math.round((closed.length / referralCount) * 100) : 0
       const ytdCloseRate = ytdReferralCount ? Math.round((ytdReferralClosed.length / ytdReferralCount) * 100) : 0
       const falloutRate = referralCount ? Math.round((fallout.length / referralCount) * 100) : 0
-      const efficiencyScore = (closed.length * 5) + (preApproved.length * 1) - (dnq.length * 1) - (cold.length * 2) - (otherLender.length * 3) - (builderLender.length * 3)
+      const efficiencyScore = Math.round(
+        (referralCount * 2)
+          + (closed.length * 20)
+          + (closedVolume / 100000)
+          - (dnq.length * 8)
+          - (lostToLenderBuilder.length * 12),
+      )
       const productionScore = (closed.length * 1000000) + closedVolume
       const opportunityScore = (activePipeline.length * 5) + (preApproved.length * 3) + (ytdReferralCount * 2)
       const relationshipScore = productionScore + (opportunityScore * 10000) + (efficiencyScore * 1000) - (fallout.length * 25000)
@@ -301,6 +334,10 @@ function useKpiAnalytics(activeLeads, partnerRows, getPartnerDisplayName) {
         ytdClosed: ytdClosed.length,
         fallout: fallout.length,
         ytdFallout: ytdFallout.length,
+        dnq: dnq.length,
+        ytdDnq: ytdDnq.length,
+        lostToLenderBuilder: lostToLenderBuilder.length,
+        ytdLostToLenderBuilder: ytdLostToLenderBuilder.length,
         projectedVolume,
         ytdProjectedVolume,
         closedVolume,
@@ -381,13 +418,27 @@ function useKpiAnalytics(activeLeads, partnerRows, getPartnerDisplayName) {
     const topOpportunityPartner = [...partnerProductionRows].sort((a, b) => b.opportunityScore - a.opportunityScore)[0]
     const topRelationshipPartner = [...partnerProductionRows].sort((a, b) => b.relationshipScore - a.relationshipScore)[0]
 
+    const loanTypeRows = ['Conventional', 'FHA', 'VA', 'USDA', 'DPA', 'NonQM', 'Unspecified']
+      .map((label) => ({
+        label,
+        count: ytdFundedLeads.filter((lead) => normalizeLoanType(lead) === label).length,
+      }))
+      .filter((row) => row.count > 0 || row.label !== 'Unspecified')
+
+    const purchaseRefiRows = ['Purchase', 'Refi']
+      .map((label) => ({
+        label,
+        count: ytdFundedLeads.filter((lead) => normalizeLoanPurpose(lead) === label).length,
+      }))
+
     return {
       buyerLeadCount: buyerLeads.length,
       ytdBuyerLeadCount: ytdBuyerLeads.length,
       averageLoanAmount: buyerLeads.length ? totalLoanAmount / buyerLeads.length : 0,
       ytdAverageLoanAmount: ytdBuyerLeads.length ? ytdLoanAmount / ytdBuyerLeads.length : 0,
-      activePipelineVolume: contractToCloseLeads.reduce((sum, lead) => sum + getLoanAmount(lead), 0),
-      ytdActivePipelineVolume: ytdContractToCloseLeads.reduce((sum, lead) => sum + getLoanAmount(lead), 0),
+      activePipelineVolume: inProcessLeads.reduce((sum, lead) => sum + getLoanAmount(lead), 0),
+      ytdActivePipelineCount: ytdInProcessLeads.length,
+      ytdActivePipelineVolume: ytdInProcessLeads.reduce((sum, lead) => sum + getLoanAmount(lead), 0),
       closedLoanCount: fundedLeads.length,
       ytdClosedLoanCount: ytdFundedLeads.length,
       closedVolume: fundedLeads.reduce((sum, lead) => sum + getLoanAmount(lead), 0),
@@ -419,6 +470,7 @@ function useKpiAnalytics(activeLeads, partnerRows, getPartnerDisplayName) {
       lastMonthLeadCount,
       trailingThreeMonthLeadAverage,
       previousThreeMonthLeadAverage,
+      ytdAverageLeadsPerMonth,
       latestCreditScoreAverage: latestCreditAverageRow?.creditScoreAverage || null,
       latestCreditScoreMonth: latestCreditAverageRow?.label || '',
       latestCreditScoreCount: latestCreditAverageRow?.creditScoreCount || 0,
@@ -427,6 +479,8 @@ function useKpiAnalytics(activeLeads, partnerRows, getPartnerDisplayName) {
       topEfficiencyPartner,
       topOpportunityPartner,
       topRelationshipPartner,
+      loanTypeRows,
+      purchaseRefiRows,
     }
   }, [activeLeads, partnerRows, getPartnerDisplayName])
 }
