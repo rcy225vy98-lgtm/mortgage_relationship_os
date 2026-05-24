@@ -1,0 +1,620 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mortgage OS Angular Dashboard Mockup</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --ink: #f5eedf;
+        --muted: #aaa8c4;
+        --line: #59698c;
+        --panel: #171c30;
+        --panel-strong: #222943;
+        --teal: #8bd3dd;
+        --teal-dark: #d7fbff;
+        --orange: #e2a06f;
+        --wash: #232942;
+        --steel: #101426;
+        --coin: #f2d58b;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background:
+          radial-gradient(circle at 16% 8%, rgba(139, 211, 221, 0.12), transparent 28%),
+          radial-gradient(circle at 84% 2%, rgba(226, 160, 111, 0.12), transparent 30%),
+          linear-gradient(180deg, #222845 0%, #171c30 52%, #111528 100%);
+        color: var(--ink);
+        font-family: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      }
+
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        background:
+          repeating-linear-gradient(
+            to bottom,
+            rgba(255, 255, 255, 0.045) 0,
+            rgba(255, 255, 255, 0.045) 1px,
+            transparent 1px,
+            transparent 5px
+          );
+        mix-blend-mode: screen;
+        opacity: 0.18;
+        pointer-events: none;
+      }
+
+      body::after {
+        content: "";
+        position: fixed;
+        left: -10vw;
+        right: -10vw;
+        bottom: -16vh;
+        height: 46vh;
+        z-index: 0;
+        background:
+          linear-gradient(rgba(139, 211, 221, 0.16) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(139, 211, 221, 0.16) 1px, transparent 1px);
+        background-size: 46px 28px;
+        transform: perspective(420px) rotateX(62deg);
+        transform-origin: bottom;
+        opacity: 0.14;
+        pointer-events: none;
+      }
+
+      .shell {
+        position: relative;
+        z-index: 1;
+        width: min(1440px, 100%);
+        margin: 0 auto;
+        padding: 18px 20px 36px;
+      }
+
+      .topbar {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        align-items: stretch;
+        min-height: 58px;
+        border: 2px solid rgba(139, 211, 221, 0.42);
+        background: rgba(20, 25, 45, 0.88);
+        box-shadow:
+          0 0 0 2px rgba(226, 160, 111, 0.1),
+          0 18px 40px rgba(6, 9, 20, 0.28);
+      }
+
+      .brand-block {
+        display: grid;
+        place-items: center;
+        min-width: 178px;
+        background: linear-gradient(135deg, #31446d, #70639c);
+        color: #fff4db;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-shadow: 2px 2px 0 rgba(4, 8, 19, 0.8);
+        clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 100%, 0 100%);
+      }
+
+      .nav {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(0, auto));
+        align-items: stretch;
+        justify-content: start;
+        gap: 0;
+        padding-left: 10px;
+      }
+
+      .nav button,
+      .top-action {
+        border: 0;
+        border-left: 1px solid rgba(139, 211, 221, 0.18);
+        background: transparent;
+        color: var(--muted);
+        padding: 0 22px;
+        font: inherit;
+        font-weight: 850;
+      }
+
+      .nav button.active {
+        background: rgba(139, 211, 221, 0.13);
+        color: #f5eedf;
+        box-shadow:
+          inset 0 -4px 0 var(--teal),
+          inset 0 0 18px rgba(139, 211, 221, 0.08);
+      }
+
+      .top-action {
+        border-right: 0;
+        color: var(--coin);
+      }
+
+      .status-strip {
+        display: grid;
+        grid-template-columns: 180px minmax(0, 1fr);
+        gap: 14px;
+        margin-top: 14px;
+      }
+
+      .sync-block,
+      .date-block {
+        border: 1px solid rgba(139, 211, 221, 0.3);
+        background: rgba(25, 31, 52, 0.86);
+        padding: 14px 16px;
+        box-shadow: 0 12px 28px rgba(6, 9, 20, 0.18);
+      }
+
+      .sync-block {
+        border-left: 6px solid var(--teal);
+      }
+
+      .eyebrow {
+        display: block;
+        color: var(--coin);
+        font-size: 12px;
+        font-weight: 950;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+
+      .sync-block strong,
+      .date-block strong {
+        display: block;
+        margin-top: 5px;
+        color: var(--teal-dark);
+        font-size: 16px;
+        line-height: 1.15;
+      }
+
+      .hero-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.8fr) minmax(280px, 0.8fr);
+        gap: 14px;
+        margin-top: 28px;
+      }
+
+      .command-panel,
+      .principle-panel,
+      .metric,
+      .queue-panel,
+      .lane-panel {
+        position: relative;
+        overflow: hidden;
+        border: 2px solid rgba(139, 211, 221, 0.32);
+        background:
+          linear-gradient(180deg, rgba(35, 41, 66, 0.95), rgba(21, 26, 47, 0.95)),
+          var(--panel);
+        box-shadow:
+          0 0 0 1px rgba(226, 160, 111, 0.1),
+          0 24px 54px rgba(6, 9, 20, 0.3);
+      }
+
+      .command-panel {
+        min-height: 210px;
+        padding: 28px 28px 22px;
+        border-top: 5px solid var(--teal);
+      }
+
+      .command-panel::after,
+      .queue-panel::after,
+      .lane-panel::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 94px;
+        height: 94px;
+        background: linear-gradient(135deg, transparent 50%, rgba(226, 160, 111, 0.18) 51%);
+        pointer-events: none;
+      }
+
+      .command-title {
+        max-width: 780px;
+        margin: 26px 0 14px;
+        color: var(--teal-dark);
+        font-size: clamp(34px, 5vw, 58px);
+        line-height: 0.95;
+        letter-spacing: 0;
+        text-shadow:
+          2px 2px 0 rgba(60, 71, 111, 0.7),
+          0 0 14px rgba(139, 211, 221, 0.14);
+      }
+
+      .command-panel p,
+      .principle-panel p,
+      .queue-panel > p {
+        margin: 0;
+        color: #c4c1d4;
+        font-size: 17px;
+        font-weight: 750;
+        line-height: 1.45;
+      }
+
+      .action-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 24px;
+      }
+
+      .button {
+        border: 1px solid var(--teal);
+        background: var(--teal);
+        color: #101426;
+        padding: 13px 18px;
+        font-weight: 900;
+        font-size: 15px;
+        box-shadow: 4px 4px 0 rgba(226, 160, 111, 0.68);
+        clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+      }
+
+      .button.secondary {
+        background: transparent;
+        color: var(--teal-dark);
+        box-shadow: 4px 4px 0 rgba(139, 211, 221, 0.16);
+      }
+
+      .principle-panel {
+        display: grid;
+        align-content: center;
+        min-height: 210px;
+        padding: 26px;
+        border-left: 5px solid var(--orange);
+      }
+
+      .principle-panel p {
+        margin-top: 18px;
+        color: #f4fbff;
+        font-size: 20px;
+      }
+
+      .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 0;
+        margin-top: 14px;
+        border: 2px solid rgba(139, 211, 221, 0.3);
+        background: rgba(139, 211, 221, 0.18);
+      }
+
+      .metric {
+        min-height: 120px;
+        border: 0;
+        box-shadow: none;
+        padding: 18px 18px 16px;
+        background: rgba(8, 19, 38, 0.92);
+      }
+
+      .metric + .metric {
+        border-left: 1px solid rgba(0, 229, 255, 0.26);
+      }
+
+      .metric strong {
+        display: block;
+        margin-top: 14px;
+        color: var(--teal-dark);
+        font-size: 30px;
+        line-height: 1;
+      }
+
+      .metric small {
+        display: block;
+        margin-top: 10px;
+        color: #bbb9d0;
+        font-size: 15px;
+        font-weight: 800;
+      }
+
+      .work-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.35fr) minmax(340px, 0.65fr);
+        gap: 14px;
+        margin-top: 18px;
+      }
+
+      .queue-panel,
+      .lane-panel {
+        padding: 22px;
+        border-top: 5px solid var(--orange);
+      }
+
+      .queue-panel h2,
+      .lane-panel h2 {
+        margin: 0;
+        color: var(--ink);
+        font-size: 32px;
+        line-height: 1;
+      }
+
+      .queue-count {
+        position: absolute;
+        top: 22px;
+        right: 22px;
+        border: 1px solid rgba(226, 160, 111, 0.42);
+        background: var(--wash);
+        color: var(--coin);
+        padding: 8px 12px;
+        font-size: 14px;
+        font-weight: 950;
+      }
+
+      .queue-list {
+        display: grid;
+        gap: 10px;
+        margin-top: 20px;
+      }
+
+      .queue-row {
+        display: grid;
+        grid-template-columns: 54px minmax(0, 1fr) auto;
+        gap: 16px;
+        align-items: center;
+        min-height: 92px;
+        border: 1px solid rgba(139, 211, 221, 0.22);
+        background: rgba(16, 20, 38, 0.58);
+        padding: 14px;
+      }
+
+      .queue-index {
+        display: grid;
+        place-items: center;
+        width: 40px;
+        height: 40px;
+        border: 1px solid rgba(139, 211, 221, 0.44);
+        background: rgba(139, 211, 221, 0.1);
+        color: var(--teal-dark);
+        font-weight: 950;
+        clip-path: polygon(0 0, 100% 0, 100% 78%, 78% 100%, 0 100%);
+      }
+
+      .queue-row h3 {
+        margin: 5px 0 4px;
+        color: var(--ink);
+        font-size: 22px;
+      }
+
+      .queue-row p {
+        margin: 0;
+        color: #bbb9d0;
+        font-weight: 800;
+      }
+
+      .row-actions {
+        display: flex;
+        gap: 8px;
+      }
+
+      .row-actions .button {
+        padding: 10px 13px;
+        font-size: 14px;
+      }
+
+      .lane-list {
+        display: grid;
+        gap: 10px;
+        margin-top: 24px;
+      }
+
+      .lane-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        border: 1px solid rgba(139, 211, 221, 0.22);
+        background: rgba(16, 20, 38, 0.58);
+        padding: 14px 16px;
+      }
+
+      .lane-row span {
+        color: #bbb9d0;
+        font-weight: 900;
+      }
+
+      .lane-row strong {
+        color: var(--teal-dark);
+        font-size: 28px;
+      }
+
+      @media (max-width: 900px) {
+        .shell {
+          padding: 10px;
+        }
+
+        .topbar,
+        .status-strip,
+        .hero-grid,
+        .work-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .brand-block {
+          min-height: 52px;
+          clip-path: none;
+        }
+
+        .nav {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          padding-left: 0;
+        }
+
+        .nav button,
+        .top-action {
+          min-height: 46px;
+          border-top: 1px solid rgba(139, 211, 221, 0.18);
+          padding: 0 10px;
+        }
+
+        .metrics-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .metric + .metric {
+          border-left: 0;
+          border-top: 1px solid var(--line);
+        }
+
+        .queue-row {
+          grid-template-columns: 42px minmax(0, 1fr);
+        }
+
+        .row-actions {
+          grid-column: 1 / -1;
+          justify-content: stretch;
+        }
+
+        .row-actions .button {
+          flex: 1;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div class="brand-block">Mortgage OS</div>
+        <nav class="nav" aria-label="Mock navigation">
+          <button class="active">Dashboard</button>
+          <button>KPIs & Stats</button>
+          <button>Lead Pipeline</button>
+          <button>Agent Prospects</button>
+          <button>Referral Partners</button>
+          <button>Weekly Updates</button>
+        </nav>
+        <button class="top-action">Cloud Sync</button>
+      </header>
+
+      <section class="status-strip">
+        <div class="sync-block">
+          <span class="eyebrow">Cloud Synced</span>
+          <strong>Updated 9:47 PM</strong>
+        </div>
+        <div class="date-block">
+          <span class="eyebrow">Saturday, May 23</span>
+          <strong>Operational dashboard</strong>
+        </div>
+      </section>
+
+      <section class="hero-grid">
+        <div class="command-panel">
+          <span class="eyebrow">Command Center</span>
+          <h1 class="command-title">Today's command center</h1>
+          <p>Luis Romero: New Referral. Follow up with client.</p>
+          <div class="action-row">
+            <button class="button">Start Top Priority</button>
+            <button class="button secondary">Open Pipeline</button>
+          </div>
+        </div>
+
+        <aside class="principle-panel">
+          <span class="eyebrow">Operating Principle</span>
+          <p>A strong business is built through simple actions repeated with discipline: follow up, add value, document, and move the ball forward.</p>
+        </aside>
+      </section>
+
+      <section class="metrics-grid">
+        <div class="metric">
+          <span class="eyebrow">Do Today</span>
+          <strong>125</strong>
+          <small>125 borrower touches</small>
+        </div>
+        <div class="metric">
+          <span class="eyebrow">Pipeline Active</span>
+          <strong>307</strong>
+          <small>20% YTD lead-to-preapproval</small>
+        </div>
+        <div class="metric">
+          <span class="eyebrow">Closing Risk</span>
+          <strong>3</strong>
+          <small>0 TRID, 0 appraisal, 3 close-window</small>
+        </div>
+        <div class="metric">
+          <span class="eyebrow">Future Volume</span>
+          <strong>$1.4M</strong>
+          <small>6 future closings</small>
+        </div>
+        <div class="metric">
+          <span class="eyebrow">Top Relationship</span>
+          <strong>Vandy</strong>
+          <small>0 relationship items in motion</small>
+        </div>
+      </section>
+
+      <section class="work-grid">
+        <div class="queue-panel">
+          <span class="queue-count">4 queued</span>
+          <h2>Priority Queue</h2>
+          <p>The highest-impact borrower, file, and partner actions in one list.</p>
+
+          <div class="queue-list">
+            <article class="queue-row">
+              <div class="queue-index">1</div>
+              <div>
+                <span class="eyebrow">Due Today</span>
+                <h3>Luis Romero</h3>
+                <p>New Referral. Follow up with client.</p>
+              </div>
+              <div class="row-actions">
+                <button class="button secondary">Mark Touched</button>
+                <button class="button">Open Lead</button>
+              </div>
+            </article>
+
+            <article class="queue-row">
+              <div class="queue-index">2</div>
+              <div>
+                <span class="eyebrow">Due Today</span>
+                <h3>Jordan Patterson</h3>
+                <p>New Referral. Follow up with client.</p>
+              </div>
+              <div class="row-actions">
+                <button class="button secondary">Mark Touched</button>
+                <button class="button">Open Lead</button>
+              </div>
+            </article>
+
+            <article class="queue-row">
+              <div class="queue-index">3</div>
+              <div>
+                <span class="eyebrow">Due Today</span>
+                <h3>Jada Harrison</h3>
+                <p>New Referral. Follow up with client.</p>
+              </div>
+              <div class="row-actions">
+                <button class="button secondary">Mark Touched</button>
+                <button class="button">Open Lead</button>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <aside class="lane-panel">
+          <h2>Revenue Lane</h2>
+          <p>Where active production is concentrated.</p>
+          <div class="lane-list">
+            <div class="lane-row">
+              <span>New / No Contact</span>
+              <strong>0</strong>
+            </div>
+            <div class="lane-row">
+              <span>Application / Docs</span>
+              <strong>0</strong>
+            </div>
+            <div class="lane-row">
+              <span>Pre-Approved</span>
+              <strong>0</strong>
+            </div>
+            <div class="lane-row">
+              <span>Contract / Refi to Close</span>
+              <strong>0</strong>
+            </div>
+          </div>
+        </aside>
+      </section>
+    </main>
+  </body>
+</html>
