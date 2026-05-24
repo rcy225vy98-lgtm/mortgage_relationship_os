@@ -117,6 +117,19 @@ function getClientName(row) {
   return [first, last].filter(Boolean).join(' ').trim()
 }
 
+function getClosingDateValue(row) {
+  return getFirstValue(row, [
+    'Closing Date',
+    'Close Date',
+    'Date Closed',
+    'Closed Date',
+    'Funded Date',
+    'Funding Date',
+    'Settlement Date',
+    'Disbursement Date',
+  ])
+}
+
 function mapStage(row) {
   const updateType = cleanValue(row['Update Type'])
   const applicationResults = cleanValue(row['Application Results'])
@@ -124,7 +137,7 @@ function mapStage(row) {
   const differentLender = cleanValue(row['Different Lender'])
   const reasonForDnq = cleanValue(row['Reason for DNQ'])
   const underContractDate = cleanValue(row['Under Contract Date'])
-  const closingDate = cleanValue(row['Closing Date'])
+  const closingDate = cleanValue(getClosingDateValue(row))
 
   const combined = [updateType, applicationResults, loanProgress].filter(Boolean).join(' ').toLowerCase()
 
@@ -181,7 +194,8 @@ export function importLeadTrackerRows(rows = []) {
       const referralDate = normalizeDate(rawDateReferred)
       const dateContact = normalizeDate(row['Date Contact'])
       const lastTouch = normalizeDate(row['Last Follow Up']) || dateContact || referralDate
-      const closingDate = normalizeDate(row['Closing Date'])
+      const rawClosingDate = getClosingDateValue(row)
+      const closingDate = normalizeDate(rawClosingDate)
       const underContractDate = normalizeDate(row['Under Contract Date'])
       const loanAmount = normalizeMoney(row['Loan Amount'])
       const creditScore = normalizeCreditScore(row)
@@ -225,6 +239,9 @@ export function importLeadTrackerRows(rows = []) {
         contractDate: underContractDate,
         loanAmount,
         closingDate,
+        closedDate: closingDate,
+        fundedDate: closingDate,
+        rawClosingDate,
         bpsPayOut: normalizeMoney(row['BPS Pay Out']),
         archived: false,
         importedAt: new Date().toISOString(),

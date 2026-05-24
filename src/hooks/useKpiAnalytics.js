@@ -88,9 +88,14 @@ function getProductionDate(lead) {
     || lead.fundedDate
     || lead.disbursementDate
     || lead.settlementDate
-    || getLeadReferredDateValue(lead)
 
   return getLocalDate(dateValue)
+}
+
+function isCurrentYearProductionLead(lead) {
+  const productionDate = getProductionDate(lead)
+  if (!productionDate) return false
+  return productionDate.getFullYear() === new Date().getFullYear()
 }
 
 function isCurrentYearLead(lead) {
@@ -156,7 +161,8 @@ function useKpiAnalytics(activeLeads, partnerRows, getPartnerDisplayName) {
     const totalLoanAmount = buyerLeads.reduce((sum, lead) => sum + getLoanAmount(lead), 0)
     const ytdLoanAmount = ytdBuyerLeads.reduce((sum, lead) => sum + getLoanAmount(lead), 0)
     const fundedLeads = buyerLeads.filter((lead) => lead.stage === 'Closed')
-    const ytdFundedLeads = ytdBuyerLeads.filter((lead) => lead.stage === 'Closed')
+    const ytdFundedLeads = fundedLeads.filter(isCurrentYearProductionLead)
+    const ytdFundedFromYtdLeads = ytdBuyerLeads.filter((lead) => lead.stage === 'Closed')
     const contractToCloseLeads = buyerLeads.filter((lead) => CONTRACT_TO_CLOSE_STAGES.includes(lead.stage))
     const ytdContractToCloseLeads = ytdBuyerLeads.filter((lead) => CONTRACT_TO_CLOSE_STAGES.includes(lead.stage))
     const falloutLeads = buyerLeads.filter((lead) => FALLOUT_STAGES.includes(lead.stage))
@@ -244,7 +250,7 @@ function useKpiAnalytics(activeLeads, partnerRows, getPartnerDisplayName) {
       { label: 'Application / Docs', count: getPartnerLeadCountByStage(buyerLeads, APPLICATION_STAGE_STAGES), ytdCount: getPartnerLeadCountByStage(ytdBuyerLeads, APPLICATION_STAGE_STAGES) },
       { label: 'Pre-Approved / Pre-Qualified', count: preApprovalLeads.length, ytdCount: ytdPreApprovalLeads.length },
       { label: 'Contract to Close', count: contractToCloseLeads.length, ytdCount: ytdContractToCloseLeads.length },
-      { label: 'Closed', count: fundedLeads.length, ytdCount: ytdFundedLeads.length },
+      { label: 'Closed', count: fundedLeads.length, ytdCount: ytdFundedFromYtdLeads.length },
       { label: 'Fallout / Lost', count: falloutLeads.length, ytdCount: ytdFalloutLeads.length },
     ].map((row) => ({
       ...row,
@@ -256,7 +262,8 @@ function useKpiAnalytics(activeLeads, partnerRows, getPartnerDisplayName) {
       const partnerLeads = buyerLeads.filter((lead) => getPartnerDisplayName(lead) === partner.partner)
       const ytdPartnerLeads = partnerLeads.filter(isCurrentYearLead)
       const closed = partnerLeads.filter((lead) => lead.stage === 'Closed')
-      const ytdClosed = ytdPartnerLeads.filter((lead) => lead.stage === 'Closed')
+      const ytdClosed = closed.filter(isCurrentYearProductionLead)
+      const ytdReferralClosed = ytdPartnerLeads.filter((lead) => lead.stage === 'Closed')
       const preApproved = partnerLeads.filter((lead) => PRE_APPROVAL_STAGES.includes(lead.stage))
       const ytdPreApproved = ytdPartnerLeads.filter((lead) => PRE_APPROVAL_STAGES.includes(lead.stage))
       const activePipeline = partnerLeads.filter((lead) => ACTIVE_PIPELINE_STAGES.includes(lead.stage))
@@ -274,7 +281,7 @@ function useKpiAnalytics(activeLeads, partnerRows, getPartnerDisplayName) {
       const referralCount = Number(partner.referrals) || partnerLeads.length || 0
       const ytdReferralCount = ytdPartnerLeads.length
       const closeRate = referralCount ? Math.round((closed.length / referralCount) * 100) : 0
-      const ytdCloseRate = ytdReferralCount ? Math.round((ytdClosed.length / ytdReferralCount) * 100) : 0
+      const ytdCloseRate = ytdReferralCount ? Math.round((ytdReferralClosed.length / ytdReferralCount) * 100) : 0
       const falloutRate = referralCount ? Math.round((fallout.length / referralCount) * 100) : 0
       const efficiencyScore = (closed.length * 5) + (preApproved.length * 1) - (dnq.length * 1) - (cold.length * 2) - (otherLender.length * 3) - (builderLender.length * 3)
       const productionScore = (closed.length * 1000000) + closedVolume
@@ -327,7 +334,7 @@ function useKpiAnalytics(activeLeads, partnerRows, getPartnerDisplayName) {
 
     const ytdOutcomeRows = [
       { label: 'Pre-Approved / Pre-Qualified', count: ytdPreApprovalLeads.length, percent: ytdBuyerLeads.length ? Math.round((ytdPreApprovalLeads.length / ytdBuyerLeads.length) * 100) : 0 },
-      { label: 'Closed', count: ytdFundedLeads.length, percent: ytdBuyerLeads.length ? Math.round((ytdFundedLeads.length / ytdBuyerLeads.length) * 100) : 0 },
+      { label: 'Closed', count: ytdFundedFromYtdLeads.length, percent: ytdBuyerLeads.length ? Math.round((ytdFundedFromYtdLeads.length / ytdBuyerLeads.length) * 100) : 0 },
       { label: 'DNQ', count: ytdBuyerLeads.filter((lead) => lead.stage === 'DNQ').length, percent: ytdBuyerLeads.length ? Math.round((ytdBuyerLeads.filter((lead) => lead.stage === 'DNQ').length / ytdBuyerLeads.length) * 100) : 0 },
       { label: 'Lost to Lender / Builder', count: ytdLostToLenderLeads.length, percent: ytdBuyerLeads.length ? Math.round((ytdLostToLenderLeads.length / ytdBuyerLeads.length) * 100) : 0 },
       { label: 'No Longer Interested', count: ytdNoLongerInterestedLeads.length, percent: ytdBuyerLeads.length ? Math.round((ytdNoLongerInterestedLeads.length / ytdBuyerLeads.length) * 100) : 0 },

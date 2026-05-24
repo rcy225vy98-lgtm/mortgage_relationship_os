@@ -14,6 +14,15 @@ function useDashboardOverview(activeLeads, partnerRows) {
         || ''
     }
 
+    function getLeadClosedDate(lead) {
+      return lead.closingDate
+        || lead.closedDate
+        || lead.fundedDate
+        || lead.disbursementDate
+        || lead.settlementDate
+        || ''
+    }
+
     function getYear(dateValue) {
       if (!dateValue) return null
       if (typeof dateValue === 'string') {
@@ -47,7 +56,7 @@ function useDashboardOverview(activeLeads, partnerRows) {
 
     const buyerLeads = activeLeads.filter((lead) => lead.leadType !== 'Agent Prospect')
     const leadsThisYear = buyerLeads.filter((lead) => isThisYear(getLeadReferralDate(lead))).length
-    const closedThisYear = buyerLeads.filter((lead) => lead.stage === 'Closed' && isThisYear(lead.closingDate || lead.lastTouch || getLeadReferralDate(lead)))
+    const closedThisYear = buyerLeads.filter((lead) => lead.stage === 'Closed' && isThisYear(getLeadClosedDate(lead)))
     const volumeClosedThisYear = closedThisYear.reduce((sum, lead) => sum + (Number(lead.loanAmount) || 0), 0)
     const preQualifiedThisYear = buyerLeads.filter((lead) => (lead.stage === 'Pre-Approved' || lead.stage === 'Pre-Qualified') && isThisYear(getLeadReferralDate(lead))).length
     const dnqOrLostThisYear = buyerLeads.filter((lead) => (lead.stage === 'DNQ' || lead.stage === 'Other Lender' || lead.stage === 'Builder Lender') && isThisYear(getLeadReferralDate(lead))).length
