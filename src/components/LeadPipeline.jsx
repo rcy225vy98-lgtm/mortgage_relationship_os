@@ -1649,7 +1649,7 @@ export default function LeadPipeline({
 
             <div className="pipeline-rail-nav" aria-label="Quick navigation">
               <button type="button" className="pipeline-rail-nav-button" onClick={returnToPipelineTop}>
-                Up
+                Back to Top
               </button>
             </div>
 
