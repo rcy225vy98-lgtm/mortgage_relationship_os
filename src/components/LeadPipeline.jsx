@@ -290,7 +290,6 @@ export default function LeadPipeline({
   showPartnerContactFields = false,
   focusedLeadId = null,
   setFocusedLeadId,
-  setActivePage,
 }) {
   const [showLeadForm, setShowLeadForm] = useState(false)
   const [editingLeadId, setEditingLeadId] = useState(null)
@@ -312,15 +311,6 @@ export default function LeadPipeline({
 
   const returnToPipelineTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
-
-  const returnToDashboard = () => {
-    if (!setActivePage) return
-
-    setActivePage('dashboard')
-    window.requestAnimationFrame(() => {
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-    })
   }
 
   const underContractLeads = useMemo(() => {
@@ -349,6 +339,15 @@ export default function LeadPipeline({
   const closedLeads = useMemo(() => {
     return filteredLeads.filter((lead) => lead.stage === 'Closed' || lead.status === 'Closed')
   }, [filteredLeads])
+
+  const dnqLeads = useMemo(() => {
+    return filteredLeads.filter((lead) => String(lead.stage || lead.status || '').toLowerCase().includes('dnq'))
+  }, [filteredLeads])
+
+  const notInterestedLeads = useMemo(() => {
+    return filteredLeads.filter((lead) => (lead.stage || lead.status) === 'Not Interested')
+  }, [filteredLeads])
+
   const pipelineSummaryMetrics = useMemo(() => {
     const soonClosingLeads = filteredLeads.filter((lead) => {
       if (!lead.closingDate) return false
@@ -378,9 +377,13 @@ export default function LeadPipeline({
         ? refiLeads
         : pipelineView === 'preApproved'
           ? preApprovedLeads
-          : pipelineView === 'closed'
-            ? closedLeads
-            : filteredLeads
+          : pipelineView === 'dnq'
+            ? dnqLeads
+            : pipelineView === 'notInterested'
+              ? notInterestedLeads
+              : pipelineView === 'closed'
+                ? closedLeads
+                : filteredLeads
   const visibleLeads = useMemo(() => sortLeads(unsortedVisibleLeads, sortMode), [unsortedVisibleLeads, sortMode])
   const visibleLeadIds = useMemo(() => visibleLeads.map((lead) => lead.id), [visibleLeads])
   const selectedLead = useMemo(() => {
@@ -412,6 +415,14 @@ export default function LeadPipeline({
 
     if (pipelineView === 'closed') {
       return `${visibleLeads.length} closed client${visibleLeads.length === 1 ? '' : 's'} in this view. Use this list for post-closing follow-up and relationship touches.`
+    }
+
+    if (pipelineView === 'dnq') {
+      return `${visibleLeads.length} DNQ lead${visibleLeads.length === 1 ? '' : 's'} in this view. Use this list for credit-plan follow-up and partner feedback.`
+    }
+
+    if (pipelineView === 'notInterested') {
+      return `${visibleLeads.length} not interested lead${visibleLeads.length === 1 ? '' : 's'} in this view. Use this list for respectful long-term nurture.`
     }
 
     return `${visibleLeads.length} lead${visibleLeads.length === 1 ? '' : 's'} shown from ${filteredLeads.length} total match${filteredLeads.length === 1 ? '' : 'es'}. Sorted by ${sortLabel.toLowerCase()}.`
@@ -1637,15 +1648,6 @@ export default function LeadPipeline({
             </div>
 
             <div className="pipeline-rail-nav" aria-label="Quick navigation">
-              {setActivePage && (
-                <button
-                  type="button"
-                  className="pipeline-rail-nav-button primary"
-                  onClick={returnToDashboard}
-                >
-                  Dashboard
-                </button>
-              )}
               <button type="button" className="pipeline-rail-nav-button" onClick={returnToPipelineTop}>
                 Up
               </button>
@@ -1740,6 +1742,20 @@ export default function LeadPipeline({
                 onClick={() => setPipelineView('closed')}
               >
                 Closed <span>{closedLeads.length}</span>
+              </button>
+              <button
+                type="button"
+                className={pipelineView === 'dnq' ? 'tab-button active' : 'tab-button'}
+                onClick={() => setPipelineView('dnq')}
+              >
+                DNQ <span>{dnqLeads.length}</span>
+              </button>
+              <button
+                type="button"
+                className={pipelineView === 'notInterested' ? 'tab-button active' : 'tab-button'}
+                onClick={() => setPipelineView('notInterested')}
+              >
+                Not Interested <span>{notInterestedLeads.length}</span>
               </button>
             </div>
 
@@ -1844,7 +1860,7 @@ export default function LeadPipeline({
             })
           ) : (
             <div className="empty-state">
-              <strong>{pipelineView === 'needsFollowUp' ? 'Nothing needs follow-up right now.' : pipelineView === 'closed' ? 'No closed clients found.' : 'No leads found.'}</strong>
+              <strong>{pipelineView === 'needsFollowUp' ? 'Nothing needs follow-up right now.' : pipelineView === 'closed' ? 'No closed clients found.' : pipelineView === 'dnq' ? 'No DNQ leads found.' : pipelineView === 'notInterested' ? 'No not interested leads found.' : 'No leads found.'}</strong>
               <p>{pipelineView === 'needsFollowUp'
                 ? 'You’re caught up based on active statuses and due next actions.'
                 : pipelineView === 'underContract'
@@ -1855,6 +1871,10 @@ export default function LeadPipeline({
                       ? 'Pre-approved leads will appear here when their stage is Pre-Approved or Pre-Qualified.'
                     : pipelineView === 'closed'
                       ? 'Closed clients will appear here once leads are marked Closed.'
+                    : pipelineView === 'dnq'
+                      ? 'DNQ leads will appear here when their stage includes DNQ.'
+                    : pipelineView === 'notInterested'
+                      ? 'Not Interested leads will appear here when their stage is set to Not Interested.'
                       : 'Try adjusting your search or partner filter.'}</p>
             </div>
           )}
