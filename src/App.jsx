@@ -18,6 +18,8 @@ import WeeklyUpdatesPage from './pages/WeeklyUpdatesPage.jsx'
 import PartnersPage from './pages/PartnersPage.jsx'
 import PartnerProfilePage from './pages/PartnerProfilePage.jsx'
 import DashboardPage from './pages/DashboardPage.jsx'
+import MortgageCoachPage, { MortgageAnalysisSharePage } from './pages/MortgageCoachPage.jsx'
+import { parseSharePayload } from './utils/mortgageCoach'
 import usePartnerTouchReminders from './hooks/usePartnerTouchReminders'
 import useKpiAnalytics from './hooks/useKpiAnalytics'
 import useDashboardOverview from './hooks/useDashboardOverview'
@@ -31,6 +33,7 @@ import './styles/app.css'
 
 const LEADS_STORAGE_KEY = 'mortgage_relationship_os_leads'
 const PARTNER_PROFILES_STORAGE_KEY = 'mortgage_relationship_os_partner_profiles'
+const MORTGAGE_ANALYSES_STORAGE_KEY = 'mortgage_relationship_os_mortgage_analyses'
 const APP_VERSION = import.meta.env.VITE_APP_VERSION || '0.0.0'
 const APP_COMMIT = import.meta.env.VITE_APP_COMMIT || 'local'
 
@@ -212,6 +215,13 @@ function normalizeLeadStage(stage) {
   return String(stage || '').trim().toLowerCase()
 }
 
+function readSharedMortgageAnalysisFromHash(hashValue = window.location.hash) {
+  const prefix = '#/analysis-share/'
+  if (!hashValue.startsWith(prefix)) return null
+
+  return parseSharePayload(hashValue.slice(prefix.length))
+}
+
 
 function isSameOrBeforeToday(dateValue, today) {
   const date = parseDateValue(dateValue)
@@ -376,6 +386,16 @@ function App() {
       return {}
     }
   })
+  const [mortgageAnalyses, setMortgageAnalyses] = useState(() => {
+    try {
+      const savedAnalyses = window.localStorage.getItem(MORTGAGE_ANALYSES_STORAGE_KEY)
+      return savedAnalyses ? JSON.parse(savedAnalyses) : []
+    } catch (error) {
+      console.error('Unable to load mortgage analyses:', error)
+      return []
+    }
+  })
+  const [sharedMortgageAnalysis, setSharedMortgageAnalysis] = useState(() => readSharedMortgageAnalysisFromHash())
   const [query, setQuery] = useState('')
   const [partnerFilter, setPartnerFilter] = useState('All Partners')
   const [agentQuery, setAgentQuery] = useState('')
@@ -448,6 +468,16 @@ function App() {
   useEffect(() => {
     focusedLeadIdRef.current = focusedLeadId
   }, [focusedLeadId])
+
+  useEffect(() => {
+    function updateSharedAnalysisFromHash() {
+      setSharedMortgageAnalysis(readSharedMortgageAnalysisFromHash())
+    }
+
+    window.addEventListener('hashchange', updateSharedAnalysisFromHash)
+
+    return () => window.removeEventListener('hashchange', updateSharedAnalysisFromHash)
+  }, [])
 
   useEffect(() => {
     leadsRef.current = leads
@@ -668,6 +698,18 @@ function App() {
 
     return () => window.clearTimeout(saveTimer)
   }, [partnerProfiles])
+
+  useEffect(() => {
+    const saveTimer = window.setTimeout(() => {
+      try {
+        window.localStorage.setItem(MORTGAGE_ANALYSES_STORAGE_KEY, JSON.stringify(mortgageAnalyses))
+      } catch (error) {
+        console.error('Unable to save mortgage analyses:', error)
+      }
+    }, 1000)
+
+    return () => window.clearTimeout(saveTimer)
+  }, [mortgageAnalyses])
 
   useEffect(() => {
     if (!isSupabaseSignedIn || !hasCompletedCloudStartupLoad) return
@@ -1184,6 +1226,16 @@ function App() {
       )
     }
 
+    if (activePage === 'mortgageCoach') {
+      return (
+        <MortgageCoachPage
+          leads={leads}
+          mortgageAnalyses={mortgageAnalyses}
+          setMortgageAnalyses={setMortgageAnalyses}
+        />
+      )
+    }
+
     if (activePage === 'agentProspects') {
       return (
         <AgentProspectsPage
@@ -1264,6 +1316,10 @@ function App() {
     )
   }
 
+  if (sharedMortgageAnalysis) {
+    return <MortgageAnalysisSharePage analysis={sharedMortgageAnalysis} />
+  }
+
   return (
     <>
       <main className="app-shell serious-crm-shell">
@@ -1288,6 +1344,13 @@ function App() {
               onClick={() => setActivePage('pipeline')}
             >
               Lead Pipeline
+            </button>
+            <button
+              type="button"
+              className={activePage === 'mortgageCoach' ? 'nav-button active' : 'nav-button'}
+              onClick={() => setActivePage('mortgageCoach')}
+            >
+              Mortgage Coach
             </button>
             <button
               type="button"
