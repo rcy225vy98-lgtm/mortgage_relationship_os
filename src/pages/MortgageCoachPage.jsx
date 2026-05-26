@@ -95,7 +95,7 @@ export function MortgageAnalysisSharePage({ analysis }) {
     <main className="mortgage-share-page">
       <section className="mortgage-share-shell">
         <div className="mortgage-share-header">
-          <span>Total Cost Analysis</span>
+          <span>Cost Review</span>
           <h1>{analysis.title || 'Mortgage Analysis'}</h1>
           <p>{analysis.borrowerName || 'Borrower'} · {analysis.programType || 'Loan scenario'}</p>
         </div>
@@ -240,7 +240,7 @@ export default function MortgageCoachPage({ leads, mortgageAnalyses, setMortgage
     setDraft({
       ...defaultMortgageAnalysis,
       id: '',
-      title: 'New Total Cost Analysis',
+      title: 'New Cost Review',
       createdAt: getTodayKey(),
       updatedAt: getTodayKey(),
     })
@@ -258,7 +258,7 @@ export default function MortgageCoachPage({ leads, mortgageAnalyses, setMortgage
     const analysisToSave = {
       ...draft,
       id,
-      title: draft.title.trim() || 'Total Cost Analysis',
+      title: draft.title.trim() || 'Cost Review',
       borrowerName: draft.borrowerName.trim() || selectedLead?.client || '',
       createdAt: draft.createdAt || now,
       updatedAt: now,
@@ -282,7 +282,7 @@ export default function MortgageCoachPage({ leads, mortgageAnalyses, setMortgage
     const copy = {
       ...draft,
       id: crypto.randomUUID?.() || String(Date.now()),
-      title: `${draft.title || 'Total Cost Analysis'} Copy`,
+      title: `${draft.title || 'Cost Review'} Copy`,
       createdAt: now,
       updatedAt: now,
     }
@@ -324,8 +324,8 @@ export default function MortgageCoachPage({ leads, mortgageAnalyses, setMortgage
     <div className="mortgage-coach-page">
       <section className="page-hero compact-hero">
         <div>
-          <span className="eyebrow">Mortgage Coach</span>
-          <h1>Total Cost Analysis</h1>
+          <span className="eyebrow">Borrower Cost Planner</span>
+          <h1>Cost Review</h1>
           <p>Create a generic borrower analysis, assign it to a lead when needed, and show total spend over custom months.</p>
         </div>
         <div className="hero-actions">

@@ -1730,7 +1730,7 @@ export default function LeadCard({ lead, onEdit, onArchive, onMarkTouched, onPus
                     <option>Voicemail</option>
                     <option>Agent Update</option>
                     <option>Strategy Review</option>
-                    <option>Mortgage Coach / TCA Sent</option>
+                    <option>Cost Review Sent</option>
                     <option>Client Check-In</option>
                     <option>Review Request</option>
                   </select>

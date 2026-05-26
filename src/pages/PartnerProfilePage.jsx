@@ -195,7 +195,7 @@ function PartnerProfilePage({
               <option>Lunch Meeting</option>
               <option>Phone Call</option>
               <option>Text Follow-Up</option>
-              <option>Mortgage Coach Example Sent</option>
+              <option>Cost Review Example Sent</option>
               <option>Market Update Sent</option>
               <option>Asked for Meeting</option>
               <option>Other</option>

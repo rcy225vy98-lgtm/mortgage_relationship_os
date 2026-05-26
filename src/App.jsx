@@ -1350,7 +1350,7 @@ function App() {
               className={activePage === 'mortgageCoach' ? 'nav-button active' : 'nav-button'}
               onClick={() => setActivePage('mortgageCoach')}
             >
-              Mortgage Coach
+              Cost Planner
             </button>
             <button
               type="button"

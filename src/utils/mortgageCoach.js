@@ -1,6 +1,6 @@
 export const defaultMortgageAnalysis = {
   id: '',
-  title: 'New Total Cost Analysis',
+  title: 'New Cost Review',
   leadId: '',
   borrowerName: '',
   purchasePrice: 450000,
