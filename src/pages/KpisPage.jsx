@@ -1,3 +1,6 @@
+import { useMemo, useState } from 'react'
+import useKpiAnalytics from '../hooks/useKpiAnalytics'
+
 function getScoreTier(score) {
   if (score >= 40) return 'High'
   if (score >= 15) return 'Moderate'
@@ -137,7 +140,201 @@ function OutcomeDonut({ rows }) {
   )
 }
 
-function KpisPage({ dashboardOverview, metrics, kpiAnalytics, formatCompactCurrency }) {
+function getDelta(currentValue, previousValue) {
+  const current = Number(currentValue) || 0
+  const previous = Number(previousValue) || 0
+  const diff = current - previous
+  const percent = previous ? Math.round((diff / previous) * 100) : null
+
+  return {
+    diff,
+    percent,
+    direction: diff > 0 ? 'up' : diff < 0 ? 'down' : 'flat',
+  }
+}
+
+function KpiSummaryCard({ label, value, previousValue, formatValue = (item) => item, fallback = 'N/A' }) {
+  const hasValue = value !== null && value !== undefined && value !== ''
+  const delta = getDelta(value, previousValue)
+  const indicator = delta.direction === 'up' ? '▲' : delta.direction === 'down' ? '▼' : '■'
+  const deltaText = delta.percent === null
+    ? 'No prior year'
+    : `${indicator} ${delta.percent > 0 ? '+' : ''}${delta.percent}% vs prior year`
+
+  return (
+    <div className={`kpi-summary-card ${delta.direction}`}>
+      <span>{label}</span>
+      <strong>{hasValue ? formatValue(value) : fallback}</strong>
+      <em>{deltaText}</em>
+    </div>
+  )
+}
+
+function ConversionSnapshot({ analytics }) {
+  const leads = analytics?.ytdBuyerLeadCount || 0
+  const paLeads = analytics?.ytdPreApprovalCount || 0
+  const closedPending = (analytics?.ytdClosedLoanCount || 0) + (analytics?.ytdActivePipelineCount || 0)
+
+  return (
+    <section className="panel domo-card conversion-snapshot-card">
+      <div className="panel-header">
+        <div>
+          <h2>Lead Conversion Snapshot</h2>
+          <p>Filtered conversion numbers for the selected view.</p>
+        </div>
+      </div>
+      <div className="conversion-number-grid">
+        <div><span>Leads</span><strong>{leads}</strong></div>
+        <div><span>PA Leads</span><strong>{paLeads}</strong></div>
+        <div><span>Closed & Pending</span><strong>{closedPending}</strong></div>
+        <div><span>Converted Total</span><strong>{analytics?.ytdLeadToCloseRate || 0}%</strong></div>
+        <div><span>Converted PA</span><strong>{analytics?.ytdLeadToPreApprovalRate || 0}%</strong></div>
+        <div><span>Fallout Total</span><strong>{analytics?.ytdFalloutRate || 0}%</strong></div>
+        <div><span>Referral to Contract</span><strong>{analytics?.ytdAverageReferralToUnderContractDays ? `${analytics.ytdAverageReferralToUnderContractDays} days` : 'N/A'}</strong></div>
+      </div>
+    </section>
+  )
+}
+
+function MonthlyReferralHeatmap({ rows }) {
+  const maxCount = Math.max(...rows.flatMap((row) => row.months.map((month) => month.count)), 1)
+
+  return (
+    <section className="panel domo-card monthly-heatmap-card">
+      <div className="panel-header">
+        <div>
+          <h2>Monthly Referral Heatmap</h2>
+          <p>Referral count by month and year. Darker cells indicate stronger months.</p>
+        </div>
+      </div>
+      <div className="monthly-heatmap">
+        <div className="monthly-heatmap-row header">
+          <span>Year</span>
+          {rows[0]?.months.map((month) => <span key={month.label}>{month.label}</span>)}
+          <span>Avg</span>
+          <span>Total</span>
+        </div>
+        {rows.map((row) => (
+          <div className="monthly-heatmap-row" key={row.year}>
+            <strong>{row.year}</strong>
+            {row.months.map((month) => {
+              const intensity = month.count ? 0.16 + ((month.count / maxCount) * 0.72) : 0
+              return (
+                <span
+                  className="heatmap-cell"
+                  key={`${row.year}-${month.label}`}
+                  style={{ backgroundColor: `rgba(11, 42, 74, ${intensity})` }}
+                >
+                  {month.count}
+                </span>
+              )
+            })}
+            <strong>{row.average}</strong>
+            <strong>{row.total}</strong>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function getPartnerInsight(row) {
+  if (row.efficiencyScore >= 40) return 'High-efficiency relationship. Protect it and ask for more introductions.'
+  if (row.efficiencyScore >= 15) return 'Productive partner with room to improve conversion or lead quality.'
+  if (row.referrals > 0) return 'Low yield so far. Review lead quality, follow-up speed, or partner expectations.'
+  return 'No measurable production yet.'
+}
+
+function PartnerRanking({ rows }) {
+  const maxScore = Math.max(...rows.map((row) => Math.max(Number(row.efficiencyScore) || 0, 0)), 40)
+
+  return (
+    <section className="panel domo-card partner-ranking-card">
+      <div className="panel-header">
+        <div>
+          <h2>Top Partners: Efficiency Score</h2>
+          <p>Closed +5, pre-approved +1, DNQ -1, cold/not connected -2, other lender -3.</p>
+        </div>
+      </div>
+      <div className="tier-zone-guide">
+        <span>Low &lt;15</span>
+        <span>Moderate 15-39.9</span>
+        <span>High 40+</span>
+      </div>
+      <div className="partner-ranking-list">
+        {rows.map((row) => {
+          const positiveScore = Math.max(Number(row.efficiencyScore) || 0, 0)
+          const width = positiveScore ? Math.max((positiveScore / maxScore) * 100, 6) : 0
+
+          return (
+            <div className="partner-ranking-row" key={row.partner}>
+              <div>
+                <strong>{row.partner}</strong>
+                <span>{getPartnerInsight(row)}</span>
+              </div>
+              <div className="efficiency-zone-track">
+                <div style={{ width: `${width}%` }} />
+              </div>
+              <span>{row.efficiencyScore}</span>
+              <span>{getScoreTier(Number(row.efficiencyScore) || 0)}</span>
+              <em>{row.closed} closed · {row.preApproved} PA · {row.dnq} DNQ · {row.lostToLenderBuilder} lost</em>
+            </div>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+function KpisPage({
+  activeLeads = [],
+  dashboardOverview,
+  getPartnerDisplayName,
+  metrics,
+  kpiAnalytics: initialKpiAnalytics,
+  partnerRows = [],
+  formatCompactCurrency,
+}) {
+  const currentYear = new Date().getFullYear()
+  const [selectedYear, setSelectedYear] = useState(String(currentYear))
+  const [selectedPartner, setSelectedPartner] = useState('All Partners')
+  const [selectedStage, setSelectedStage] = useState('All Stages')
+  const partnerOptions = useMemo(() => {
+    const names = activeLeads
+      .filter((lead) => lead.leadType !== 'Agent Prospect')
+      .map((lead) => getPartnerDisplayName?.(lead) || lead.partner || 'Self-Sourced')
+
+    return ['All Partners', ...new Set(names)].sort((a, b) => {
+      if (a === 'All Partners') return -1
+      if (b === 'All Partners') return 1
+      return a.localeCompare(b)
+    })
+  }, [activeLeads, getPartnerDisplayName])
+  const stageOptions = useMemo(() => {
+    const stages = activeLeads
+      .filter((lead) => lead.leadType !== 'Agent Prospect')
+      .map((lead) => lead.stage || lead.status || 'New Referral')
+
+    return ['All Stages', ...new Set(stages)].sort((a, b) => {
+      if (a === 'All Stages') return -1
+      if (b === 'All Stages') return 1
+      return a.localeCompare(b)
+    })
+  }, [activeLeads])
+  const filteredLeads = useMemo(() => {
+    return activeLeads.filter((lead) => {
+      if (selectedPartner !== 'All Partners' && (getPartnerDisplayName?.(lead) || lead.partner || 'Self-Sourced') !== selectedPartner) return false
+      if (selectedStage !== 'All Stages' && (lead.stage || lead.status || 'New Referral') !== selectedStage) return false
+      return true
+    })
+  }, [activeLeads, getPartnerDisplayName, selectedPartner, selectedStage])
+  const filteredKpiAnalytics = useKpiAnalytics(
+    filteredLeads,
+    partnerRows,
+    getPartnerDisplayName || ((lead) => lead.partner || 'Self-Sourced'),
+    Number(selectedYear),
+  )
+  const kpiAnalytics = activeLeads.length ? filteredKpiAnalytics : initialKpiAnalytics
   const buyerPipeline = dashboardOverview?.buyerPipeline || []
   const partnerMomentum = dashboardOverview?.partnerMomentum || []
   const stageRows = kpiAnalytics?.stageRows || []
@@ -151,8 +348,24 @@ function KpisPage({ dashboardOverview, metrics, kpiAnalytics, formatCompactCurre
   const purchaseRefiRows = kpiAnalytics?.purchaseRefiRows || []
   const topPartnerRows = kpiAnalytics?.topPartnerRows || []
   const leadYearRows = kpiAnalytics?.leadYearRows || []
+  const annualPerformanceRows = kpiAnalytics?.annualPerformanceRows || []
+  const monthlyReferralHeatmapRows = kpiAnalytics?.monthlyReferralHeatmapRows || []
+  const selectedYearPerformance = annualPerformanceRows.find((row) => row.year === Number(selectedYear)) || {}
+  const priorYearPerformance = annualPerformanceRows.find((row) => row.year === Number(selectedYear) - 1) || {}
+  const incomeAvailable = annualPerformanceRows.some((row) => Number(row.income) > 0)
   const recentMonthlyLeadRows = monthlyLeadRows.slice(-12)
   const recentProductionRows = monthlyProductionRows.slice(-12)
+  const partnerRankingRows = [...partnerProductionRows]
+    .map((row) => ({
+      ...row,
+      closed: row.ytdClosed,
+      preApproved: row.ytdPreApproved,
+      dnq: row.ytdDnq,
+      lostToLenderBuilder: row.ytdLostToLenderBuilder,
+      efficiencyScore: row.ytdEfficiencyScore,
+    }))
+    .sort((a, b) => b.efficiencyScore - a.efficiencyScore)
+    .slice(0, 10)
   const maxMonthlyLeadTotal = Math.max(...recentMonthlyLeadRows.map((row) => row.total), 1)
   const maxCreditAverage = Math.max(...monthlyLeadRows.map((row) => row.creditScoreAverage || 0), 1)
   const threeMonthPaceChange = (kpiAnalytics?.trailingThreeMonthLeadAverage || 0) - (kpiAnalytics?.previousThreeMonthLeadAverage || 0)
@@ -176,32 +389,48 @@ function KpisPage({ dashboardOverview, metrics, kpiAnalytics, formatCompactCurre
 
   return (
     <>
+      <section className="kpi-filter-bar">
+        <div>
+          <span>KPI Filters</span>
+          <strong>{selectedYear} performance view</strong>
+        </div>
+        <label>
+          Year
+          <select value={selectedYear} onChange={(event) => setSelectedYear(event.target.value)}>
+            {[2024, 2025, 2026].map((year) => (
+              <option key={year} value={year}>{year}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Referral Partner
+          <select value={selectedPartner} onChange={(event) => setSelectedPartner(event.target.value)}>
+            {partnerOptions.map((partner) => (
+              <option key={partner} value={partner}>{partner}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Stage
+          <select value={selectedStage} onChange={(event) => setSelectedStage(event.target.value)}>
+            {stageOptions.map((stage) => (
+              <option key={stage} value={stage}>{stage}</option>
+            ))}
+          </select>
+        </label>
+      </section>
+
       <section className="kpi-scorecard-strip">
-        <div>
-          <span>YTD Lead Count</span>
-          <strong>{kpiAnalytics?.ytdBuyerLeadCount || 0}</strong>
-          <em>{kpiAnalytics?.currentMonthLeadCount || 0} this month</em>
-        </div>
-        <div>
-          <span>YTD Pre-Approvals</span>
-          <strong>{kpiAnalytics?.ytdPreApprovalCount || 0}</strong>
-          <em>{kpiAnalytics?.ytdLeadToPreApprovalRate || 0}% of YTD leads</em>
-        </div>
-        <div>
-          <span>YTD In-Process</span>
-          <strong>{kpiAnalytics?.ytdActivePipelineCount || 0}</strong>
-          <em>{formatCompactCurrency(kpiAnalytics?.ytdActivePipelineVolume || 0)} active volume</em>
-        </div>
-        <div>
-          <span>YTD Closed</span>
-          <strong>{kpiAnalytics?.ytdClosedLoanCount || 0}</strong>
-          <em>{formatCompactCurrency(kpiAnalytics?.ytdClosedVolume || 0)} closed volume</em>
-        </div>
-        <div>
-          <span>YTD Fallout</span>
-          <strong>{kpiAnalytics?.ytdFalloutCount || 0}</strong>
-          <em>{kpiAnalytics?.ytdFalloutRate || 0}% of YTD leads</em>
-        </div>
+        <KpiSummaryCard label="Total Leads YTD" value={selectedYearPerformance.leads} previousValue={priorYearPerformance.leads} />
+        <KpiSummaryCard label="Pre-Approved Leads" value={selectedYearPerformance.preApproved} previousValue={priorYearPerformance.preApproved} />
+        <KpiSummaryCard label="Under Contract" value={selectedYearPerformance.underContract} previousValue={priorYearPerformance.underContract} />
+        <KpiSummaryCard label="Funded / Closed" value={selectedYearPerformance.units} previousValue={priorYearPerformance.units} />
+        <KpiSummaryCard label="Total Funded Volume" value={selectedYearPerformance.volume} previousValue={priorYearPerformance.volume} formatValue={formatCompactCurrency} />
+        <KpiSummaryCard label="Total Income" value={incomeAvailable ? selectedYearPerformance.income : null} previousValue={incomeAvailable ? priorYearPerformance.income : null} formatValue={formatCompactCurrency} fallback="Not tracked" />
+        <KpiSummaryCard label="Total Conversion" value={selectedYearPerformance.conversionRate} previousValue={priorYearPerformance.conversionRate} formatValue={(value) => `${value}%`} />
+        <KpiSummaryCard label="Pre-Approval Conversion" value={selectedYearPerformance.preApprovalRate} previousValue={priorYearPerformance.preApprovalRate} formatValue={(value) => `${value}%`} />
+        <KpiSummaryCard label="Fallout" value={selectedYearPerformance.falloutRate} previousValue={priorYearPerformance.falloutRate} formatValue={(value) => `${value}%`} />
+        <KpiSummaryCard label="Referral to Contract" value={selectedYearPerformance.averageReferralToUnderContractDays} previousValue={priorYearPerformance.averageReferralToUnderContractDays} formatValue={(value) => `${value} days`} fallback="N/A" />
       </section>
 
       <section className="executive-summary-strip daily-business-brief kpi-summary-strip">
@@ -215,6 +444,44 @@ function KpisPage({ dashboardOverview, metrics, kpiAnalytics, formatCompactCurre
               <strong>Flow:</strong> {kpiAnalytics?.ytdBuyerLeadCount || 0} YTD buyer leads, {kpiAnalytics?.currentMonthLeadCount || 0} this month, {kpiAnalytics?.ytdAverageLeadsPerMonth || 0} average per month, and {metrics.needsAttention} follow-up item{metrics.needsAttention === 1 ? '' : 's'} due.
             </p>
           </div>
+        </div>
+      </section>
+
+      <section className="kpi-chart-grid three-up">
+        <div className="panel domo-card kpi-chart-card">
+          <div className="panel-header">
+            <div>
+              <h2>YTD Volume by Year</h2>
+              <p>Funded volume comparison across available years.</p>
+            </div>
+          </div>
+          <MiniBarChart rows={annualPerformanceRows} valueKey="volume" labelKey="year" formatValue={formatCompactCurrency} />
+        </div>
+
+        <div className="panel domo-card kpi-chart-card">
+          <div className="panel-header">
+            <div>
+              <h2>YTD Units by Year</h2>
+              <p>Funded count comparison across available years.</p>
+            </div>
+          </div>
+          <MiniBarChart rows={annualPerformanceRows} valueKey="units" labelKey="year" />
+        </div>
+
+        <div className="panel domo-card kpi-chart-card">
+          <div className="panel-header">
+            <div>
+              <h2>YTD Income by Year</h2>
+              <p>{incomeAvailable ? 'Income or commission where stored.' : 'Income fields are not populated in current data.'}</p>
+            </div>
+          </div>
+          <MiniBarChart
+            rows={annualPerformanceRows}
+            valueKey="income"
+            labelKey="year"
+            formatValue={formatCompactCurrency}
+            emptyLabel="Income is not tracked in the current CRM data."
+          />
         </div>
       </section>
 
@@ -288,6 +555,8 @@ function KpisPage({ dashboardOverview, metrics, kpiAnalytics, formatCompactCurre
         </div>
       </section>
 
+      <ConversionSnapshot analytics={kpiAnalytics} />
+
       <section className="kpi-chart-grid">
         <div className="panel domo-card kpi-chart-card">
           <div className="panel-header">
@@ -312,6 +581,10 @@ function KpisPage({ dashboardOverview, metrics, kpiAnalytics, formatCompactCurre
           />
         </div>
       </section>
+
+      <PartnerRanking rows={partnerRankingRows} />
+
+      <MonthlyReferralHeatmap rows={monthlyReferralHeatmapRows} />
 
       <section className="kpi-chart-grid">
         <div className="panel domo-card kpi-chart-card">
@@ -670,12 +943,16 @@ function KpisPage({ dashboardOverview, metrics, kpiAnalytics, formatCompactCurre
               <span>Partner</span>
               <span>YTD Refs</span>
               <span>YTD Active</span>
+              <span>YTD PA</span>
               <span>DNQ</span>
               <span>Lost</span>
               <span>YTD Closed</span>
+              <span>Lead → PA</span>
               <span>YTD Close %</span>
+              <span>Lead Share</span>
+              <span>Closed Share</span>
               <span>All Closed</span>
-              <span>Closed $</span>
+              <span>YTD Closed $</span>
               <span>Eff.</span>
               <span>Tier</span>
             </div>
@@ -684,14 +961,18 @@ function KpisPage({ dashboardOverview, metrics, kpiAnalytics, formatCompactCurre
                 <strong>{row.partner}</strong>
                 <span>{row.ytdReferrals}</span>
                 <span>{row.ytdActivePipeline}</span>
-                <span>{row.dnq}</span>
-                <span>{row.lostToLenderBuilder}</span>
+                <span>{row.ytdPreApproved}</span>
+                <span>{row.ytdDnq}</span>
+                <span>{row.ytdLostToLenderBuilder}</span>
                 <span>{row.ytdClosed}</span>
+                <span>{row.ytdReferrals ? Math.round((row.ytdPreApproved / row.ytdReferrals) * 100) : 0}%</span>
                 <span>{row.ytdCloseRate}%</span>
+                <span>{kpiAnalytics?.ytdBuyerLeadCount ? Math.round((row.ytdReferrals / kpiAnalytics.ytdBuyerLeadCount) * 100) : 0}%</span>
+                <span>{kpiAnalytics?.ytdClosedLoanCount ? Math.round((row.ytdClosed / kpiAnalytics.ytdClosedLoanCount) * 100) : 0}%</span>
                 <span>{row.closed}</span>
-                <span>{formatCompactCurrency(row.closedVolume || 0)}</span>
-                <span>{row.efficiencyScore}</span>
-                <span>{getScoreTier(Number(row.efficiencyScore) || 0)}</span>
+                <span>{formatCompactCurrency(row.ytdClosedVolume || 0)}</span>
+                <span>{row.ytdEfficiencyScore}</span>
+                <span>{getScoreTier(Number(row.ytdEfficiencyScore) || 0)}</span>
               </div>
             ))}
           </div>

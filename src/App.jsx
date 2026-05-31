@@ -1200,9 +1200,12 @@ function App() {
     if (activePage === 'kpis') {
       return (
         <KpisPage
+          activeLeads={activeLeads}
           dashboardOverview={dashboardOverview}
+          getPartnerDisplayName={getPartnerDisplayName}
           metrics={metrics}
           kpiAnalytics={kpiAnalytics}
+          partnerRows={partnerRows}
           formatCompactCurrency={formatCompactCurrency}
         />
       )
@@ -1251,7 +1254,7 @@ function App() {
       )
     }
     if (activePage === 'partners') {
-      return <PartnersPage partnerRows={partnerRows} onOpenPartner={openPartnerProfile} />
+      return <PartnersPage partnerRows={partnerRows} partnerProfiles={partnerProfiles} onOpenPartner={openPartnerProfile} />
     }
 
     if (activePage === 'partnerProfile') {

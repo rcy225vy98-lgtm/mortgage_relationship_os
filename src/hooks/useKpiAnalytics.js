@@ -8,10 +8,20 @@ const EARLY_STAGE_STAGES = ['New Referral', 'Contact Attempted']
 const APPLICATION_STAGE_STAGES = ['Application Started', 'Connected, Needs Application', 'Waiting on Docs', 'Documentation']
 const PRE_APPROVAL_STAGES = ['Pre-Approved', 'Pre-Qualified']
 const IN_PROCESS_STAGES = [...APPLICATION_STAGE_STAGES, ...CONTRACT_TO_CLOSE_STAGES]
-const CREDIT_HISTORY_START = new Date(2025, 0, 1)
+const CREDIT_HISTORY_START = new Date(2024, 0, 1)
+const ANALYSIS_YEARS = [2024, 2025, 2026]
 
 function getLoanAmount(lead) {
   return Number(lead.loanAmount) || 0
+}
+
+function getIncomeAmount(lead) {
+  return Number(lead.income)
+    || Number(lead.commission)
+    || Number(lead.totalIncome)
+    || Number(lead.grossCommission)
+    || Number(lead.bpsPayOut)
+    || 0
 }
 
 function getReferralTimestamp(lead) {
@@ -93,16 +103,25 @@ function getProductionDate(lead) {
   return getLocalDate(dateValue)
 }
 
-function isCurrentYearProductionLead(lead) {
-  const productionDate = getProductionDate(lead)
-  if (!productionDate) return false
-  return productionDate.getFullYear() === new Date().getFullYear()
+function getUnderContractDate(lead) {
+  return getLocalDate(lead.underContractDate || lead.contractDate || lead.processStartDate)
 }
 
-function isCurrentYearLead(lead) {
+function getDaysBetweenDates(startDate, endDate) {
+  if (!startDate || !endDate) return null
+  return Math.round((endDate.getTime() - startDate.getTime()) / 86400000)
+}
+
+function isProductionLeadInYear(lead, year) {
+  const productionDate = getProductionDate(lead)
+  if (!productionDate) return false
+  return productionDate.getFullYear() === year
+}
+
+function isLeadInYear(lead, year) {
   const timestamp = getReferralTimestamp(lead)
   if (!timestamp) return false
-  return new Date(timestamp).getFullYear() === new Date().getFullYear()
+  return new Date(timestamp).getFullYear() === year
 }
 
 function getDaysSinceReferral(lead) {
@@ -174,15 +193,24 @@ function normalizeLoanPurpose(lead) {
   return 'Purchase'
 }
 
-function useKpiAnalytics(activeLeads, partnerRows, getPartnerDisplayName) {
+function getAverageReferralToUnderContractDays(leads) {
+  const days = leads
+    .map((lead) => getDaysBetweenDates(getReferralDate(lead), getUnderContractDate(lead)))
+    .filter((dayCount) => typeof dayCount === 'number' && dayCount >= 0)
+
+  if (!days.length) return null
+  return Math.round(days.reduce((sum, dayCount) => sum + dayCount, 0) / days.length)
+}
+
+function useKpiAnalytics(activeLeads, partnerRows, getPartnerDisplayName, analysisYear = new Date().getFullYear()) {
   return useMemo(() => {
     const now = new Date()
     const buyerLeads = activeLeads.filter((lead) => lead.leadType !== 'Agent Prospect')
-    const ytdBuyerLeads = buyerLeads.filter(isCurrentYearLead)
+    const ytdBuyerLeads = buyerLeads.filter((lead) => isLeadInYear(lead, analysisYear))
     const totalLoanAmount = buyerLeads.reduce((sum, lead) => sum + getLoanAmount(lead), 0)
     const ytdLoanAmount = ytdBuyerLeads.reduce((sum, lead) => sum + getLoanAmount(lead), 0)
     const fundedLeads = buyerLeads.filter((lead) => lead.stage === 'Closed')
-    const ytdFundedLeads = fundedLeads.filter(isCurrentYearProductionLead)
+    const ytdFundedLeads = fundedLeads.filter((lead) => isProductionLeadInYear(lead, analysisYear))
     const ytdFundedFromYtdLeads = ytdBuyerLeads.filter((lead) => lead.stage === 'Closed')
     const contractToCloseLeads = buyerLeads.filter((lead) => CONTRACT_TO_CLOSE_STAGES.includes(lead.stage))
     const ytdContractToCloseLeads = ytdBuyerLeads.filter((lead) => CONTRACT_TO_CLOSE_STAGES.includes(lead.stage))
@@ -285,9 +313,9 @@ function useKpiAnalytics(activeLeads, partnerRows, getPartnerDisplayName) {
 
     const partnerProductionRows = partnerRows.map((partner) => {
       const partnerLeads = buyerLeads.filter((lead) => getPartnerDisplayName(lead) === partner.partner)
-      const ytdPartnerLeads = partnerLeads.filter(isCurrentYearLead)
+      const ytdPartnerLeads = partnerLeads.filter((lead) => isLeadInYear(lead, analysisYear))
       const closed = partnerLeads.filter((lead) => lead.stage === 'Closed')
-      const ytdClosed = closed.filter(isCurrentYearProductionLead)
+      const ytdClosed = closed.filter((lead) => isProductionLeadInYear(lead, analysisYear))
       const ytdReferralClosed = ytdPartnerLeads.filter((lead) => lead.stage === 'Closed')
       const preApproved = partnerLeads.filter((lead) => PRE_APPROVAL_STAGES.includes(lead.stage))
       const ytdPreApproved = ytdPartnerLeads.filter((lead) => PRE_APPROVAL_STAGES.includes(lead.stage))
@@ -301,6 +329,8 @@ function useKpiAnalytics(activeLeads, partnerRows, getPartnerDisplayName) {
       const builderLender = partnerLeads.filter((lead) => lead.stage === 'Builder Lender')
       const lostToLenderBuilder = [...otherLender, ...builderLender]
       const ytdLostToLenderBuilder = ytdPartnerLeads.filter((lead) => LOST_TO_LENDER_STAGES.includes(lead.stage))
+      const cold = partnerLeads.filter((lead) => EARLY_STAGE_STAGES.includes(lead.stage))
+      const ytdCold = ytdPartnerLeads.filter((lead) => EARLY_STAGE_STAGES.includes(lead.stage))
       const projectedVolume = activePipeline.reduce((sum, lead) => sum + getLoanAmount(lead), 0)
       const ytdProjectedVolume = ytdActivePipeline.reduce((sum, lead) => sum + getLoanAmount(lead), 0)
       const closedVolume = closed.reduce((sum, lead) => sum + getLoanAmount(lead), 0)
@@ -310,16 +340,11 @@ function useKpiAnalytics(activeLeads, partnerRows, getPartnerDisplayName) {
       const closeRate = referralCount ? Math.round((closed.length / referralCount) * 100) : 0
       const ytdCloseRate = ytdReferralCount ? Math.round((ytdReferralClosed.length / ytdReferralCount) * 100) : 0
       const falloutRate = referralCount ? Math.round((fallout.length / referralCount) * 100) : 0
-      const efficiencyScore = Math.round(
-        (referralCount * 2)
-          + (closed.length * 20)
-          + (closedVolume / 100000)
-          - (dnq.length * 8)
-          - (lostToLenderBuilder.length * 12),
-      )
+      const efficiencyScore = (closed.length * 5) + preApproved.length - dnq.length - (cold.length * 2) - (lostToLenderBuilder.length * 3)
+      const ytdEfficiencyScore = (ytdClosed.length * 5) + ytdPreApproved.length - ytdDnq.length - (ytdCold.length * 2) - (ytdLostToLenderBuilder.length * 3)
       const productionScore = (closed.length * 1000000) + closedVolume
       const opportunityScore = (activePipeline.length * 5) + (preApproved.length * 3) + (ytdReferralCount * 2)
-      const relationshipScore = productionScore + (opportunityScore * 10000) + (efficiencyScore * 1000) - (fallout.length * 25000)
+      const relationshipScore = productionScore + (opportunityScore * 10000) + (ytdEfficiencyScore * 1000) - (fallout.length * 25000)
       const averageDaysSinceReferral = getAverageDays(partnerLeads)
 
       return {
@@ -336,6 +361,8 @@ function useKpiAnalytics(activeLeads, partnerRows, getPartnerDisplayName) {
         ytdFallout: ytdFallout.length,
         dnq: dnq.length,
         ytdDnq: ytdDnq.length,
+        cold: cold.length,
+        ytdCold: ytdCold.length,
         lostToLenderBuilder: lostToLenderBuilder.length,
         ytdLostToLenderBuilder: ytdLostToLenderBuilder.length,
         projectedVolume,
@@ -347,6 +374,7 @@ function useKpiAnalytics(activeLeads, partnerRows, getPartnerDisplayName) {
         falloutRate,
         averageDaysSinceReferral,
         efficiencyScore,
+        ytdEfficiencyScore,
         productionScore,
         opportunityScore,
         relationshipScore,
@@ -414,7 +442,7 @@ function useKpiAnalytics(activeLeads, partnerRows, getPartnerDisplayName) {
       return b.ytdClosedVolume - a.ytdClosedVolume
     })[0]
 
-    const topEfficiencyPartner = [...partnerProductionRows].sort((a, b) => b.efficiencyScore - a.efficiencyScore)[0]
+    const topEfficiencyPartner = [...partnerProductionRows].sort((a, b) => b.ytdEfficiencyScore - a.ytdEfficiencyScore)[0]
     const topOpportunityPartner = [...partnerProductionRows].sort((a, b) => b.opportunityScore - a.opportunityScore)[0]
     const topRelationshipPartner = [...partnerProductionRows].sort((a, b) => b.relationshipScore - a.relationshipScore)[0]
 
@@ -431,7 +459,55 @@ function useKpiAnalytics(activeLeads, partnerRows, getPartnerDisplayName) {
         count: ytdFundedLeads.filter((lead) => normalizeLoanPurpose(lead) === label).length,
       }))
 
+    const annualPerformanceRows = ANALYSIS_YEARS.map((year) => {
+      const yearLeads = buyerLeads.filter((lead) => isLeadInYear(lead, year))
+      const yearFunded = fundedLeads.filter((lead) => isProductionLeadInYear(lead, year))
+      const income = yearFunded.reduce((sum, lead) => sum + getIncomeAmount(lead), 0)
+      const volume = yearFunded.reduce((sum, lead) => sum + getLoanAmount(lead), 0)
+      const preApproved = yearLeads.filter((lead) => PRE_APPROVAL_STAGES.includes(lead.stage))
+      const underContract = yearLeads.filter((lead) => CONTRACT_TO_CLOSE_STAGES.includes(lead.stage))
+      const fallout = yearLeads.filter((lead) => FALLOUT_STAGES.includes(lead.stage) || lead.stage === 'Not Interested')
+
+      return {
+        year,
+        leads: yearLeads.length,
+        preApproved: preApproved.length,
+        underContract: underContract.length,
+        units: yearFunded.length,
+        volume,
+        income,
+        conversionRate: yearLeads.length ? Math.round((yearFunded.length / yearLeads.length) * 100) : 0,
+        preApprovalRate: yearLeads.length ? Math.round((preApproved.length / yearLeads.length) * 100) : 0,
+        falloutRate: yearLeads.length ? Math.round((fallout.length / yearLeads.length) * 100) : 0,
+        averageReferralToUnderContractDays: getAverageReferralToUnderContractDays(yearLeads),
+      }
+    })
+
+    const monthlyReferralHeatmapRows = ANALYSIS_YEARS.map((year) => {
+      const months = Array.from({ length: 12 }, (_, monthIndex) => {
+        const count = buyerLeads.filter((lead) => {
+          const referralDate = getReferralDate(lead)
+          return referralDate && referralDate.getFullYear() === year && referralDate.getMonth() === monthIndex
+        }).length
+
+        return {
+          monthIndex,
+          label: new Date(year, monthIndex, 1).toLocaleDateString('en-US', { month: 'short' }),
+          count,
+        }
+      })
+      const total = months.reduce((sum, month) => sum + month.count, 0)
+
+      return {
+        year,
+        months,
+        total,
+        average: Math.round((total / 12) * 10) / 10,
+      }
+    })
+
     return {
+      analysisYear,
       buyerLeadCount: buyerLeads.length,
       ytdBuyerLeadCount: ytdBuyerLeads.length,
       averageLoanAmount: buyerLeads.length ? totalLoanAmount / buyerLeads.length : 0,
@@ -481,8 +557,12 @@ function useKpiAnalytics(activeLeads, partnerRows, getPartnerDisplayName) {
       topRelationshipPartner,
       loanTypeRows,
       purchaseRefiRows,
+      annualPerformanceRows,
+      monthlyReferralHeatmapRows,
+      ytdIncome: ytdFundedLeads.reduce((sum, lead) => sum + getIncomeAmount(lead), 0),
+      ytdAverageReferralToUnderContractDays: getAverageReferralToUnderContractDays(ytdBuyerLeads),
     }
-  }, [activeLeads, partnerRows, getPartnerDisplayName])
+  }, [activeLeads, partnerRows, getPartnerDisplayName, analysisYear])
 }
 
 export default useKpiAnalytics
