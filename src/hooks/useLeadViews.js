@@ -48,6 +48,10 @@ function useLeadViews({
   }, [activeLeads, agentQuery, agentFilter])
 
   const partnerRows = useMemo(() => {
+    function getLeadStage(lead) {
+      return lead.stage || lead.status || ''
+    }
+
     const grouped = activeLeads.reduce((acc, lead) => {
       if (!shouldShowInReferralPartners(lead)) return acc
 
@@ -83,8 +87,9 @@ function useLeadViews({
           lastTouch,
           nextActionDate,
           referrals: row.referredLeads.length,
-          preApproved: row.referredLeads.filter((lead) => lead.stage === 'Pre-Approved').length,
-          underContract: row.referredLeads.filter((lead) => lead.stage === 'Under Contract').length,
+          preApproved: row.referredLeads.filter((lead) => getLeadStage(lead) === 'Pre-Approved').length,
+          underContract: row.referredLeads.filter((lead) => getLeadStage(lead) === 'Under Contract').length,
+          closed: row.referredLeads.filter((lead) => getLeadStage(lead) === 'Closed').length,
           score: partnerScore(row.referredLeads),
         }
       })

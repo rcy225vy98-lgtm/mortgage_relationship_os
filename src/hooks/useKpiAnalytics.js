@@ -6,10 +6,15 @@ const FALLOUT_STAGES = ['DNQ', 'Other Lender', 'Builder Lender']
 const LOST_TO_LENDER_STAGES = ['Other Lender', 'Builder Lender']
 const EARLY_STAGE_STAGES = ['New Referral', 'Contact Attempted']
 const APPLICATION_STAGE_STAGES = ['Application Started', 'Connected, Needs Application', 'Waiting on Docs', 'Documentation']
-const PRE_APPROVAL_STAGES = ['Pre-Approved', 'Pre-Qualified']
 const IN_PROCESS_STAGES = [...APPLICATION_STAGE_STAGES, ...CONTRACT_TO_CLOSE_STAGES]
 const CREDIT_HISTORY_START = new Date(2024, 0, 1)
 const ANALYSIS_YEARS = [2024, 2025, 2026]
+
+function isPreApprovedPopulationLead(lead) {
+  return lead.stage === 'Pre-Approved'
+    || lead.stage === 'Under Contract'
+    || lead.stage === 'Closed'
+}
 
 function getLoanAmount(lead) {
   return Number(lead.loanAmount) || 0
@@ -222,8 +227,8 @@ function useKpiAnalytics(activeLeads, partnerRows, getPartnerDisplayName, analys
     const ytdLostToLenderLeads = ytdBuyerLeads.filter((lead) => LOST_TO_LENDER_STAGES.includes(lead.stage))
     const noLongerInterestedLeads = buyerLeads.filter((lead) => lead.stage === 'Not Interested')
     const ytdNoLongerInterestedLeads = ytdBuyerLeads.filter((lead) => lead.stage === 'Not Interested')
-    const preApprovalLeads = buyerLeads.filter((lead) => PRE_APPROVAL_STAGES.includes(lead.stage))
-    const ytdPreApprovalLeads = ytdBuyerLeads.filter((lead) => PRE_APPROVAL_STAGES.includes(lead.stage))
+    const preApprovalLeads = buyerLeads.filter(isPreApprovedPopulationLead)
+    const ytdPreApprovalLeads = ytdBuyerLeads.filter(isPreApprovedPopulationLead)
     const monthlyLeadRows = getMonthRange(CREDIT_HISTORY_START, now).map((monthDate) => {
       const monthKey = getMonthKey(monthDate)
       const monthLeads = buyerLeads.filter((lead) => {
@@ -239,7 +244,7 @@ function useKpiAnalytics(activeLeads, partnerRows, getPartnerDisplayName, analys
           && referralDate.getMonth() <= monthNumber
       })
       const creditScores = monthLeads.map(getCreditScore).filter((score) => score !== null)
-      const preApprovedInMonth = monthLeads.filter((lead) => PRE_APPROVAL_STAGES.includes(lead.stage))
+      const preApprovedInMonth = monthLeads.filter(isPreApprovedPopulationLead)
       const closedInMonth = monthLeads.filter((lead) => lead.stage === 'Closed')
       const dnqInMonth = monthLeads.filter((lead) => lead.stage === 'DNQ')
       const lostInMonth = monthLeads.filter((lead) => LOST_TO_LENDER_STAGES.includes(lead.stage))
@@ -317,8 +322,8 @@ function useKpiAnalytics(activeLeads, partnerRows, getPartnerDisplayName, analys
       const closed = partnerLeads.filter((lead) => lead.stage === 'Closed')
       const ytdClosed = closed.filter((lead) => isProductionLeadInYear(lead, analysisYear))
       const ytdReferralClosed = ytdPartnerLeads.filter((lead) => lead.stage === 'Closed')
-      const preApproved = partnerLeads.filter((lead) => PRE_APPROVAL_STAGES.includes(lead.stage))
-      const ytdPreApproved = ytdPartnerLeads.filter((lead) => PRE_APPROVAL_STAGES.includes(lead.stage))
+      const preApproved = partnerLeads.filter(isPreApprovedPopulationLead)
+      const ytdPreApproved = ytdPartnerLeads.filter(isPreApprovedPopulationLead)
       const activePipeline = partnerLeads.filter((lead) => ACTIVE_PIPELINE_STAGES.includes(lead.stage))
       const ytdActivePipeline = ytdPartnerLeads.filter((lead) => ACTIVE_PIPELINE_STAGES.includes(lead.stage))
       const fallout = partnerLeads.filter((lead) => FALLOUT_STAGES.includes(lead.stage))
@@ -417,7 +422,7 @@ function useKpiAnalytics(activeLeads, partnerRows, getPartnerDisplayName, analys
       }
 
       rows[source].leads += 1
-      if (PRE_APPROVAL_STAGES.includes(lead.stage)) rows[source].preApproved += 1
+      if (isPreApprovedPopulationLead(lead)) rows[source].preApproved += 1
       if (lead.stage === 'Closed') rows[source].closed += 1
       if (FALLOUT_STAGES.includes(lead.stage) || lead.stage === 'Not Interested') rows[source].fallout += 1
       rows[source].volume += getLoanAmount(lead)
@@ -464,7 +469,7 @@ function useKpiAnalytics(activeLeads, partnerRows, getPartnerDisplayName, analys
       const yearFunded = fundedLeads.filter((lead) => isProductionLeadInYear(lead, year))
       const income = yearFunded.reduce((sum, lead) => sum + getIncomeAmount(lead), 0)
       const volume = yearFunded.reduce((sum, lead) => sum + getLoanAmount(lead), 0)
-      const preApproved = yearLeads.filter((lead) => PRE_APPROVAL_STAGES.includes(lead.stage))
+      const preApproved = yearLeads.filter(isPreApprovedPopulationLead)
       const underContract = yearLeads.filter((lead) => CONTRACT_TO_CLOSE_STAGES.includes(lead.stage))
       const fallout = yearLeads.filter((lead) => FALLOUT_STAGES.includes(lead.stage) || lead.stage === 'Not Interested')
 

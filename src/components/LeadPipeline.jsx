@@ -82,24 +82,6 @@ const leadSourceOptions = [
   'Other',
 ]
 
-const touchOutcomeOptions = [
-  'Connected',
-  'Left Voicemail',
-  'No Response',
-  'Sent Docs',
-  'Waiting on Borrower',
-  'Waiting on Partner',
-  'Needs Follow-Up',
-  'Completed',
-]
-
-function addDaysToDateKey(dateValue, days) {
-  const date = dateValue ? new Date(`${dateValue}T12:00:00`) : new Date()
-  if (Number.isNaN(date.getTime())) return ''
-  date.setDate(date.getDate() + days)
-  return date.toISOString().slice(0, 10)
-}
-
 function formatLoanAmountInput(value) {
   const digitsOnly = String(value || '').replace(/\D/g, '')
   if (!digitsOnly) return ''
@@ -123,19 +105,6 @@ function hasReachedClosingDate(closingDate) {
   today.setHours(0, 0, 0, 0)
 
   return !Number.isNaN(closing.getTime()) && closing <= today
-}
-
-function formatFeedbackDate(value) {
-  if (!value) return '—'
-
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '—'
-
-  return date.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
 }
 
 function getStageOptionsForLeadType(leadType) {
@@ -300,14 +269,6 @@ export default function LeadPipeline({
   const [bulkActionsOpen, setBulkActionsOpen] = useState(false)
   const [selectedLeadIds, setSelectedLeadIds] = useState([])
   const [selectedLeadId, setSelectedLeadId] = useState(null)
-  const [detailTouchLoggerOpen, setDetailTouchLoggerOpen] = useState(false)
-  const [detailTouchDraft, setDetailTouchDraft] = useState({
-    type: 'Text',
-    outcome: 'Connected',
-    note: '',
-    nextAction: '',
-    nextActionDate: '',
-  })
 
   const returnToPipelineTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -332,8 +293,27 @@ export default function LeadPipeline({
     return filteredLeads.filter((lead) => ['Pre-Approved', 'Pre-Qualified'].includes(lead.stage || lead.status))
   }, [filteredLeads])
 
+  const incompleteApplicationLeads = useMemo(() => {
+    return filteredLeads.filter((lead) => ['Application Started', 'Connected, Needs Application'].includes(lead.stage || lead.status))
+  }, [filteredLeads])
+
   const inProcessLeads = useMemo(() => {
-    return filteredLeads.filter((lead) => ['Application Started', 'Connected, Needs Application', 'Waiting on Docs', 'Documentation', 'Refi', 'Under Contract', 'Conditional Approval', 'Clear to Close'].includes(lead.stage || lead.status))
+    return filteredLeads.filter((lead) => ['Waiting on Docs', 'Documentation', 'Refi', 'Under Contract', 'Conditional Approval', 'Clear to Close'].includes(lead.stage || lead.status))
+  }, [filteredLeads])
+
+  const closingSoonLeads = useMemo(() => {
+    return filteredLeads.filter((lead) => {
+      if (!lead.closingDate) return false
+
+      const closingDate = new Date(`${lead.closingDate}T00:00:00`)
+      if (Number.isNaN(closingDate.getTime())) return false
+
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const daysUntilClosing = Math.ceil((closingDate - today) / (24 * 60 * 60 * 1000))
+
+      return daysUntilClosing >= 0 && daysUntilClosing <= 14
+    })
   }, [filteredLeads])
 
   const closedLeads = useMemo(() => {
@@ -349,47 +329,37 @@ export default function LeadPipeline({
   }, [filteredLeads])
 
   const pipelineSummaryMetrics = useMemo(() => {
-    const soonClosingLeads = filteredLeads.filter((lead) => {
-      if (!lead.closingDate) return false
-
-      const closingDate = new Date(`${lead.closingDate}T00:00:00`)
-      if (Number.isNaN(closingDate.getTime())) return false
-
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      const daysUntilClosing = Math.ceil((closingDate - today) / (24 * 60 * 60 * 1000))
-
-      return daysUntilClosing >= 0 && daysUntilClosing <= 14
-    })
-
     return [
-      { label: 'Pre-Approved Leads', value: preApprovedLeads.length, tone: 'navy' },
-      { label: 'In Process', value: inProcessLeads.length, tone: 'blue' },
-      { label: 'Closing Soon', value: soonClosingLeads.length, tone: 'gold' },
+      { label: 'Pre-Approved Leads', value: preApprovedLeads.length, tone: 'navy', view: 'preApproved' },
+      { label: 'Incomplete Application', value: incompleteApplicationLeads.length, tone: 'muted', view: 'incompleteApplication' },
+      { label: 'In Process', value: inProcessLeads.length, tone: 'blue', view: 'inProcess' },
+      { label: 'Closing Soon', value: closingSoonLeads.length, tone: 'gold', view: 'closingSoon' },
     ]
-  }, [filteredLeads, inProcessLeads.length, preApprovedLeads.length])
+  }, [closingSoonLeads.length, incompleteApplicationLeads.length, inProcessLeads.length, preApprovedLeads.length])
 
   const unsortedVisibleLeads = pipelineView === 'needsFollowUp'
     ? needsFollowUpLeads
     : pipelineView === 'underContract'
       ? underContractLeads
-      : pipelineView === 'refi'
-        ? refiLeads
-        : pipelineView === 'preApproved'
-          ? preApprovedLeads
-          : pipelineView === 'dnq'
-            ? dnqLeads
-            : pipelineView === 'notInterested'
-              ? notInterestedLeads
-              : pipelineView === 'closed'
-                ? closedLeads
-                : filteredLeads
+      : pipelineView === 'incompleteApplication'
+        ? incompleteApplicationLeads
+        : pipelineView === 'inProcess'
+          ? inProcessLeads
+          : pipelineView === 'closingSoon'
+            ? closingSoonLeads
+            : pipelineView === 'refi'
+              ? refiLeads
+              : pipelineView === 'preApproved'
+                ? preApprovedLeads
+                : pipelineView === 'dnq'
+                  ? dnqLeads
+                  : pipelineView === 'notInterested'
+                    ? notInterestedLeads
+                    : pipelineView === 'closed'
+                      ? closedLeads
+                      : filteredLeads
   const visibleLeads = useMemo(() => sortLeads(unsortedVisibleLeads, sortMode), [unsortedVisibleLeads, sortMode])
   const visibleLeadIds = useMemo(() => visibleLeads.map((lead) => lead.id), [visibleLeads])
-  const selectedLead = useMemo(() => {
-    if (!selectedLeadId) return null
-    return filteredLeads.find((lead) => String(lead.id) === String(selectedLeadId)) || null
-  }, [filteredLeads, selectedLeadId])
   const selectedVisibleCount = selectedLeadIds.filter((leadId) => visibleLeadIds.includes(leadId)).length
   const allVisibleSelected = visibleLeadIds.length > 0 && selectedVisibleCount === visibleLeadIds.length
   const activeFilterCount = (partnerFilter !== 'All Partners' ? 1 : 0) + (sortMode !== 'dateReferredDesc' ? 1 : 0)
@@ -403,6 +373,18 @@ export default function LeadPipeline({
 
     if (pipelineView === 'underContract') {
       return `${visibleLeads.length} active contract file${visibleLeads.length === 1 ? '' : 's'} in this view. Watch closing dates, appraisal timing, and next touches.`
+    }
+
+    if (pipelineView === 'inProcess') {
+      return `${visibleLeads.length} in-process lead${visibleLeads.length === 1 ? '' : 's'} in this view. Use this for files that have moved past application intake and need active pipeline management.`
+    }
+
+    if (pipelineView === 'incompleteApplication') {
+      return `${visibleLeads.length} incomplete application lead${visibleLeads.length === 1 ? '' : 's'} in this view. These need application completion before they should be treated as active pipeline.`
+    }
+
+    if (pipelineView === 'closingSoon') {
+      return `${visibleLeads.length} file${visibleLeads.length === 1 ? '' : 's'} closing in the next 14 days. Review appraisal, conditions, cash to close, and client communication.`
     }
 
     if (pipelineView === 'refi') {
@@ -755,317 +737,6 @@ export default function LeadPipeline({
         nextActionDate,
       }))
     }
-  }
-
-  function copyLeadDetailMessage(lead) {
-    if (!lead) return
-
-    const followUpPlan = getLeadFollowUpPlan(lead)
-    const message = lead.suggestedMessage
-      || `${lead.client}, ${followUpPlan.recommendedAction || lead.nextAction || 'wanted to follow up with you today.'}`
-
-    navigator.clipboard.writeText(message).then(() => {
-      alert('Message copied to clipboard')
-    }).catch(() => {
-      alert('Unable to copy message. You can still use the suggested action in the panel.')
-    })
-  }
-
-  function callSelectedLead(lead) {
-    if (!lead?.phone) return
-    window.location.href = `tel:${lead.phone}`
-  }
-
-  function emailSelectedLead(lead) {
-    if (!lead?.email) return
-    window.location.href = `mailto:${lead.email}`
-  }
-
-  function openDetailTouchLogger(defaultType = 'Text', defaultOutcome = 'Connected') {
-    if (!selectedLead) return
-
-    setDetailTouchDraft({
-      type: defaultType,
-      outcome: defaultOutcome,
-      note: '',
-      nextAction: selectedLead.nextAction || getLeadFollowUpPlan(selectedLead).recommendedAction || '',
-      nextActionDate: selectedLead.nextActionDate || addDaysToDateKey(new Date().toISOString().slice(0, 10), 3),
-    })
-    setDetailTouchLoggerOpen(true)
-  }
-
-  function updateDetailTouchDraft(field, value) {
-    setDetailTouchDraft((current) => ({
-      ...current,
-      [field]: value,
-    }))
-  }
-
-  function saveDetailTouch() {
-    if (!selectedLead) return
-
-    markTouchedToday(selectedLead.id, {
-      type: detailTouchDraft.type,
-      outcome: detailTouchDraft.outcome,
-      note: detailTouchDraft.note.trim() || `${detailTouchDraft.type}: ${detailTouchDraft.outcome}.`,
-      nextAction: detailTouchDraft.nextAction.trim(),
-      nextActionDate: detailTouchDraft.nextActionDate,
-      date: new Date().toISOString().slice(0, 10),
-      meaningful: true,
-    })
-
-    setDetailTouchLoggerOpen(false)
-  }
-
-  function renderLeadDetailPanel() {
-    if (!selectedLead) {
-      return (
-        <aside className="pipeline-detail-panel empty" aria-label="Lead detail panel">
-          <div className="pipeline-detail-empty">
-            <span>Lead Workspace</span>
-            <strong>Select a lead</strong>
-            <p>Open a lead from the list to see contact details, loan timing, next action, and quick controls here.</p>
-          </div>
-        </aside>
-      )
-    }
-
-    const stage = selectedLead.stage || selectedLead.status || 'New Referral'
-    const followUpPlan = getLeadFollowUpPlan(selectedLead)
-    const stageOptions = getStageOptionsForLeadType(selectedLead.leadType || 'Buyer Lead')
-    const recentTouches = (selectedLead.touchHistory || []).slice(0, 6)
-    const hasPhone = Boolean(selectedLead.phone)
-    const hasEmail = Boolean(selectedLead.email)
-    const isClientFile = isClientLeadType(selectedLead.leadType || 'Buyer Lead')
-    const isClosingFile = ['Refi', 'Under Contract', 'Conditional Approval', 'Clear to Close', 'Closed'].includes(stage)
-
-    return (
-      <aside className="pipeline-detail-panel" aria-label={`${selectedLead.client} lead details`}>
-        <div className="pipeline-detail-header">
-          <div>
-            <span>{selectedLead.leadType || 'Buyer Lead'}</span>
-            <h3>{selectedLead.client}</h3>
-            <p>{stage} · {selectedLead.partner || 'No partner assigned'}</p>
-          </div>
-          <button type="button" className="ghost-button small-button" onClick={() => setSelectedLeadId(null)}>
-            Close
-          </button>
-        </div>
-
-        <div className={`pipeline-detail-next-action priority-${followUpPlan.priority.toLowerCase().replace(/\s+/g, '-')}`}>
-          <span>{followUpPlan.priority} · {followUpPlan.recommendedChannel}</span>
-          <strong>{selectedLead.nextAction || followUpPlan.recommendedAction}</strong>
-          <p>{followUpPlan.reason}</p>
-        </div>
-
-        <div className="pipeline-detail-actions">
-          <button type="button" className="primary-button small-button" onClick={() => openDetailTouchLogger('Text', 'Connected')}>
-            Log Touch
-          </button>
-          <button type="button" className="ghost-button small-button" onClick={() => copyLeadDetailMessage(selectedLead)}>
-            Copy Message
-          </button>
-          <button type="button" className="ghost-button small-button" onClick={() => callSelectedLead(selectedLead)} disabled={!hasPhone}>
-            Call
-          </button>
-          <button type="button" className="ghost-button small-button" onClick={() => emailSelectedLead(selectedLead)} disabled={!hasEmail}>
-            Email
-          </button>
-        </div>
-
-        <div className="pipeline-detail-quick-log" aria-label="Quick log actions">
-          <button type="button" onClick={() => openDetailTouchLogger('Voicemail', 'Left Voicemail')}>Left Voicemail</button>
-          <button type="button" onClick={() => openDetailTouchLogger('Text', 'Sent Docs')}>Sent Text</button>
-          <button type="button" onClick={() => openDetailTouchLogger('Call', 'Connected')}>Connected</button>
-          <button type="button" onClick={() => openDetailTouchLogger('Email', 'Waiting on Borrower')}>Waiting on Docs</button>
-          <button type="button" onClick={() => openDetailTouchLogger('Agent Update', 'Completed')}>Partner Updated</button>
-        </div>
-
-        {detailTouchLoggerOpen && (
-          <div className="pipeline-detail-touch-logger">
-            <div className="pipeline-detail-section-header">
-              <strong>Log Communication</strong>
-              <span>Outcome and next step</span>
-            </div>
-            <div className="pipeline-detail-touch-grid">
-              <label>
-                Touch Type
-                <select value={detailTouchDraft.type} onChange={(event) => updateDetailTouchDraft('type', event.target.value)}>
-                  <option>Call</option>
-                  <option>Text</option>
-                  <option>Email</option>
-                  <option>Voicemail</option>
-                  <option>Meeting</option>
-                  <option>Agent Update</option>
-                  <option>CRM Update</option>
-                </select>
-              </label>
-              <label>
-                Outcome
-                <select value={detailTouchDraft.outcome} onChange={(event) => updateDetailTouchDraft('outcome', event.target.value)}>
-                  {touchOutcomeOptions.map((outcome) => (
-                    <option key={outcome}>{outcome}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="wide">
-                Note
-                <textarea
-                  value={detailTouchDraft.note}
-                  onChange={(event) => updateDetailTouchDraft('note', event.target.value)}
-                  placeholder="Example: Connected, borrower is uploading bank statements tonight."
-                  rows="3"
-                />
-              </label>
-              <label>
-                Next Action
-                <input
-                  value={detailTouchDraft.nextAction}
-                  onChange={(event) => updateDetailTouchDraft('nextAction', event.target.value)}
-                  placeholder="Example: Review uploaded docs"
-                />
-              </label>
-              <label>
-                Next Action Date
-                <input
-                  type="date"
-                  value={detailTouchDraft.nextActionDate}
-                  onChange={(event) => updateDetailTouchDraft('nextActionDate', event.target.value)}
-                />
-              </label>
-            </div>
-            <div className="pipeline-detail-touch-actions">
-              <button type="button" className="ghost-button small-button" onClick={() => setDetailTouchLoggerOpen(false)}>
-                Cancel
-              </button>
-              <button type="button" className="primary-button small-button" onClick={saveDetailTouch}>
-                Save Touch
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div className="pipeline-detail-grid">
-          <div>
-            <span>Phone</span>
-            <strong>{selectedLead.phone || '—'}</strong>
-          </div>
-          <div>
-            <span>Email</span>
-            <strong>{selectedLead.email || '—'}</strong>
-          </div>
-          <div>
-            <span>Loan Amount</span>
-            <strong>{selectedLead.loanAmount ? `$${Number(selectedLead.loanAmount).toLocaleString()}` : '—'}</strong>
-          </div>
-          <div>
-            <span>Credit Score</span>
-            <strong>{selectedLead.creditScore || '—'}</strong>
-          </div>
-          <div>
-            <span>Last Touch</span>
-            <strong>{formatFeedbackDate(selectedLead.lastTouch)}</strong>
-          </div>
-          <div>
-            <span>Next Touch</span>
-            <strong>{formatFeedbackDate(selectedLead.nextActionDate || followUpPlan.nextTouchDate)}</strong>
-          </div>
-        </div>
-
-        <div className="pipeline-detail-section">
-          <div className="pipeline-detail-section-header">
-            <strong>Stage Control</strong>
-            <span>Move the file forward</span>
-          </div>
-          <select
-            value={stage}
-            onChange={(event) => quickUpdateLead(selectedLead.id, { stage: event.target.value, status: event.target.value })}
-          >
-            {stageOptions.map((option) => (
-              <option key={option} value={option}>{option}</option>
-            ))}
-          </select>
-        </div>
-
-        {isClientFile && (
-          <div className="pipeline-detail-section">
-            <div className="pipeline-detail-section-header">
-              <strong>Loan Timing</strong>
-              <span>Closing date and appraisal</span>
-            </div>
-            <label className="pipeline-detail-date-control">
-              Close Date
-              <input
-                type="date"
-                value={selectedLead.closingDate || ''}
-                onChange={(event) => quickUpdateLead(selectedLead.id, { closingDate: event.target.value, closedDate: event.target.value })}
-              />
-            </label>
-            {isClosingFile && (
-              <div className="pipeline-detail-grid compact">
-                <div>
-                  <span>Closing</span>
-                  <strong>{formatFeedbackDate(selectedLead.closingDate)}</strong>
-                </div>
-                <div>
-                  <span>Appraisal</span>
-                  <strong>{selectedLead.appraisalReceived ? 'Received' : selectedLead.appraisalOrdered ? 'Ordered' : 'Not ordered'}</strong>
-                </div>
-                <div>
-                  <span>Appraisal Due</span>
-                  <strong>{formatFeedbackDate(selectedLead.appraisalDueDate)}</strong>
-                </div>
-                <div>
-                  <span>Loan Progress</span>
-                  <strong>{selectedLead.loanProgress || selectedLead.pipelineStatus || stage}</strong>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="pipeline-detail-section">
-          <div className="pipeline-detail-section-header">
-            <strong>Notes</strong>
-            <span>Borrower context</span>
-          </div>
-          <p className="pipeline-detail-note">{selectedLead.detail || 'No notes added yet.'}</p>
-        </div>
-
-        <div className="pipeline-detail-section">
-          <div className="pipeline-detail-section-header">
-            <strong>Recent Activity</strong>
-            <span>{recentTouches.length} touch{recentTouches.length === 1 ? '' : 'es'}</span>
-          </div>
-          {recentTouches.length > 0 ? (
-            <div className="pipeline-detail-activity-list">
-              {recentTouches.map((touch) => (
-                <div key={touch.id || `${touch.date}-${touch.type}-${touch.note}`}>
-                  <strong>{touch.type || 'Touch'}{touch.outcome ? ` · ${touch.outcome}` : ''}</strong>
-                  <p>{touch.note || 'Lead touched.'}</p>
-                  {touch.nextAction && <p>Next: {touch.nextAction}{touch.nextActionDate ? ` on ${formatFeedbackDate(touch.nextActionDate)}` : ''}</p>}
-                  <span>{formatFeedbackDate(touch.date)}</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="pipeline-detail-note">No touch history recorded yet.</p>
-          )}
-        </div>
-
-        <div className="pipeline-detail-footer-actions">
-          <button type="button" className="ghost-button small-button" onClick={() => pushNextActionThreeDays(selectedLead.id)}>
-            Push 3 Days
-          </button>
-          <button type="button" className="ghost-button small-button" onClick={() => startEditingLead(selectedLead)}>
-            Full Edit
-          </button>
-          <button type="button" className="ghost-button danger-button small-button" onClick={() => archiveLead(selectedLead.id)}>
-            Archive
-          </button>
-        </div>
-      </aside>
-    )
   }
 
   function quickUpdateLead(leadId, updates) {
@@ -1774,10 +1445,16 @@ export default function LeadPipeline({
         <main className="pipeline-main-stage">
           <div className="pipeline-summary-strip" aria-label="Lead pipeline summary">
         {pipelineSummaryMetrics.map((metric) => (
-          <div className={`pipeline-summary-card ${metric.tone}`} key={metric.label}>
+          <button
+            type="button"
+            className={`pipeline-summary-card ${metric.tone} ${pipelineView === metric.view ? 'active' : ''}`}
+            key={metric.label}
+            onClick={() => setPipelineView(metric.view)}
+            aria-pressed={pipelineView === metric.view}
+          >
             <span>{metric.label}</span>
             <strong>{metric.value}</strong>
-          </div>
+          </button>
         ))}
       </div>
 
@@ -1835,17 +1512,6 @@ export default function LeadPipeline({
                       <span />
                     </label>
                   )}
-                  <button
-                    type="button"
-                    className="lead-detail-panel-trigger"
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      setSelectedLeadId(lead.id)
-                    }}
-                    aria-label={`Open ${lead.client} in the detail panel`}
-                  >
-                    Details
-                  </button>
                   <MemoLeadCard
                     lead={lead}
                     onEdit={startEditingLead}
@@ -1880,7 +1546,6 @@ export default function LeadPipeline({
           )}
         </div>
         </main>
-        {renderLeadDetailPanel()}
       </div>
     </div>
   )

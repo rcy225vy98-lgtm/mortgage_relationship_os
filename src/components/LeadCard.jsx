@@ -827,8 +827,7 @@ export default function LeadCard({ lead, onEdit, onArchive, onMarkTouched, onPus
     onEdit(lead)
   }
 
-  function startQuickEdit(event) {
-    event.stopPropagation()
+  function beginQuickEdit() {
     setQuickEditDraft({
       client: lead.client || '',
       phone: lead.phone || '',
@@ -857,6 +856,23 @@ export default function LeadCard({ lead, onEdit, onArchive, onMarkTouched, onPus
       detail: lead.detail || '',
     })
     setIsQuickEditing(true)
+  }
+
+  function isInteractiveCardClick(event) {
+    return Boolean(event.target.closest('button, a, input, select, textarea, label, [role="button"], [data-card-click-ignore="true"]'))
+  }
+
+  function handleCardClick(event) {
+    if (isInteractiveCardClick(event)) return
+
+    if (!isExpanded) {
+      onEdit(lead)
+      return
+    }
+
+    if (!isQuickEditing) {
+      beginQuickEdit()
+    }
   }
 
   function updateQuickEditDraft(field, value) {
@@ -941,7 +957,7 @@ export default function LeadCard({ lead, onEdit, onArchive, onMarkTouched, onPus
     <article
       ref={cardRef}
       className={leadCardClassName}
-      onClick={() => setIsExpanded((current) => !current)}
+      onClick={handleCardClick}
     >
       <div className="lead-topline">
         <div className="collapsed-lead-identity">
@@ -1020,7 +1036,7 @@ export default function LeadCard({ lead, onEdit, onArchive, onMarkTouched, onPus
 
       {isExpanded && (
         <div className={`lead-client-file-page ${isQuickEditing ? 'is-editing-client-file' : ''}`}>
-          <div className="client-file-hero" onClick={(event) => event.stopPropagation()}>
+          <div className="client-file-hero">
             <div className="client-file-hero-main">
               <div className="client-file-title-row">
                 <div>
@@ -1038,10 +1054,6 @@ export default function LeadCard({ lead, onEdit, onArchive, onMarkTouched, onPus
                   <button type="button" className="client-file-action-button" onClick={emailLead} disabled={!lead.email}>
                     <span className="client-file-action-icon" aria-hidden="true">✉</span>
                     <span>Email</span>
-                  </button>
-                  <button type="button" className="client-file-action-button" onClick={startQuickEdit}>
-                    <span className="client-file-action-icon" aria-hidden="true">✎</span>
-                    <span>Quick Edit</span>
                   </button>
                   <button type="button" className="client-file-action-button" onClick={openTouchLogger}>
                     <span className="client-file-action-icon" aria-hidden="true">☑</span>
@@ -1863,15 +1875,7 @@ export default function LeadCard({ lead, onEdit, onArchive, onMarkTouched, onPus
             >
               Push 3 Days
             </button>
-            {!isQuickEditing ? (
-              <button
-                type="button"
-                className="ghost-button small-button"
-                onClick={startQuickEdit}
-              >
-                Quick Edit
-              </button>
-            ) : (
+            {isQuickEditing && (
               <>
                 <button
                   type="button"

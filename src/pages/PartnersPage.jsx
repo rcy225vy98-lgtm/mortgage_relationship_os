@@ -1,7 +1,7 @@
 import PartnerScorecard from '../components/PartnerScorecard'
 
-function PartnersPage({ partnerRows, onOpenPartner }) {
-  return <PartnerScorecard partnerRows={partnerRows} onOpenPartner={onOpenPartner} />
+function PartnersPage({ partnerRows, partnerProfiles, onOpenPartner }) {
+  return <PartnerScorecard partnerRows={partnerRows} partnerProfiles={partnerProfiles} onOpenPartner={onOpenPartner} />
 }
 
 export default PartnersPage
