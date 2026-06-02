@@ -866,7 +866,8 @@ export default function LeadCard({ lead, onEdit, onArchive, onMarkTouched, onPus
     if (isInteractiveCardClick(event)) return
 
     if (!isExpanded) {
-      onEdit(lead)
+      setIsExpanded(true)
+      beginQuickEdit()
       return
     }
 
