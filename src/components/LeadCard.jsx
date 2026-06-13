@@ -279,6 +279,68 @@ function getLeadChipClassName(label, type = 'default') {
     .join(' ')
 }
 
+function cleanSummaryText(value, maxLength = 150) {
+  const normalizedValue = String(value || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  if (!normalizedValue) return ''
+  if (normalizedValue.length <= maxLength) return normalizedValue
+
+  return `${normalizedValue.slice(0, maxLength - 1).trim()}...`
+}
+
+function getLeadSnapshotItems({ lead, stage, unmetNeedsCount, hasLoanAmount, showClosingTiming, businessDaysUntilClosing }) {
+  const items = []
+  const noteSummary = cleanSummaryText(lead.detail || lead.notes || lead.summary, 170)
+
+  if (noteSummary) {
+    items.push({ type: 'context', label: 'Context', text: noteSummary })
+  }
+
+  if (lead.coBorrower) {
+    items.push({ type: 'fact', label: 'Co-borrower', text: lead.coBorrower })
+  }
+
+  if (lead.loanType) {
+    items.push({ type: 'fact', label: 'Loan', text: lead.loanType })
+  }
+
+  if (lead.creditScore) {
+    items.push({ type: 'fact', label: 'Credit', text: String(lead.creditScore) })
+  }
+
+  if (unmetNeedsCount > 0) {
+    items.push({
+      type: 'hot',
+      label: 'Needs',
+      text: `${unmetNeedsCount} unmet item${unmetNeedsCount === 1 ? '' : 's'}`,
+    })
+  }
+
+  if (lead.manualTaskActive && lead.nextAction) {
+    items.push({ type: 'hot', label: 'Task', text: cleanSummaryText(lead.nextAction, 72) })
+  }
+
+  if (showClosingTiming) {
+    items.push({ type: 'hot', label: 'Closing', text: formatBusinessDaysLabel(businessDaysUntilClosing) })
+  }
+
+  if (activeClosingStages.has(stage) && !lead.appraisalOrdered && !lead.appraisalReceived) {
+    items.push({ type: 'gap', label: 'Appraisal', text: 'Not ordered' })
+  }
+
+  if (!hasLoanAmount) {
+    items.push({ type: 'gap', label: 'Gap', text: 'Loan amount missing' })
+  }
+
+  if (!lead.phone && !lead.email) {
+    items.push({ type: 'gap', label: 'Gap', text: 'Contact info missing' })
+  }
+
+  return items.slice(0, 5)
+}
+
 function getNeedsListCopyText(lead, needsList) {
   const unmetNeeds = needsList.filter((item) => !item.met)
   const groupedNeeds = groupNeedsByOwner(lead, unmetNeeds)
@@ -568,6 +630,14 @@ export default function LeadCard({ lead, onEdit, onArchive, onMarkTouched, onPus
   const needsList = Array.isArray(lead.needsList) ? lead.needsList : []
   const unmetNeedsCount = needsList.filter((item) => !item.met).length
   const needOwnerOptions = getNeedOwnerOptions(lead)
+  const leadSnapshotItems = getLeadSnapshotItems({
+    lead,
+    stage,
+    unmetNeedsCount,
+    hasLoanAmount,
+    showClosingTiming,
+    businessDaysUntilClosing,
+  })
   const nextBestAction = getNextBestActionInsight({
     lead,
     stage,
@@ -979,6 +1049,17 @@ export default function LeadCard({ lead, onEdit, onArchive, onMarkTouched, onPus
             {lead.leadSource && <span className={getLeadChipClassName(lead.leadSource, 'source')}>Source: {lead.leadSource}</span>}
             {showApprovalSummary && <span className={getLeadChipClassName(approvalSummary, 'approval')}>{approvalSummary}</span>}
           </div>
+
+          {leadSnapshotItems.length > 0 && (
+            <div className="collapsed-lead-snapshot" aria-label={`${lead.client} lead summary`}>
+              {leadSnapshotItems.map((item) => (
+                <div className={`collapsed-lead-snapshot-item ${item.type}`} key={`${item.label}-${item.text}`}>
+                  <span>{item.label}</span>
+                  <p>{item.text}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
           <div className="lead-stats">
