@@ -3,6 +3,8 @@ import { getLeadFollowUpPlan, getRecommendedNextTouchDate } from '../utils/caden
 import { saveLead as saveLeadToSupabase } from '../data/leadsRepository'
 import LeadCard from './LeadCard'
 
+const LEADS_STORAGE_KEY = 'mortgage_relationship_os_leads'
+
 const MemoLeadCard = memo(LeadCard, (previousProps, nextProps) => {
   return previousProps.lead === nextProps.lead
 })
@@ -211,6 +213,8 @@ const blankLeadForm = {
   referralDate: new Date().toISOString().slice(0, 10),
   status: 'New Referral',
   loanAmount: '',
+  purchasePrice: '',
+  propertyAddress: '',
   loanType: '',
   interestRate: '',
   firstPaymentDate: '',
@@ -506,6 +510,13 @@ export default function LeadPipeline({
         }
       }
 
+      if (field === 'purchasePrice') {
+        return {
+          ...current,
+          purchasePrice: formatLoanAmountInput(value),
+        }
+      }
+
       if (field === 'secondLienAmount') {
         return {
           ...current,
@@ -614,6 +625,8 @@ export default function LeadPipeline({
       referralDate: lead.referralDate || '',
       status: lead.status || 'New Referral',
       loanAmount: lead.loanAmount ? formatLoanAmountInput(lead.loanAmount) : '',
+      purchasePrice: lead.purchasePrice ? formatLoanAmountInput(lead.purchasePrice) : '',
+      propertyAddress: lead.propertyAddress || '',
       loanType: lead.loanType || '',
       interestRate: lead.interestRate || '',
       firstPaymentDate: lead.firstPaymentDate || '',
@@ -741,9 +754,10 @@ export default function LeadPipeline({
 
   function quickUpdateLead(leadId, updates) {
     let leadToSave = null
+    let nextLeadsForLocalBackup = null
 
-    setLeads((current) =>
-      current.map((lead) => {
+    setLeads((current) => {
+      nextLeadsForLocalBackup = current.map((lead) => {
         if (String(lead.id) !== String(leadId)) return lead
 
         leadToSave = {
@@ -752,8 +766,10 @@ export default function LeadPipeline({
         }
 
         return leadToSave
-      }),
-    )
+      })
+
+      return nextLeadsForLocalBackup
+    })
 
     if (String(editingLeadId) === String(leadId)) {
       setLeadForm((current) => ({
@@ -763,6 +779,12 @@ export default function LeadPipeline({
     }
 
     if (leadToSave) {
+      try {
+        window.localStorage.setItem(LEADS_STORAGE_KEY, JSON.stringify(nextLeadsForLocalBackup))
+      } catch (error) {
+        console.error('Quick lead local backup failed:', error)
+      }
+
       saveLeadToSupabase(leadToSave).catch((error) => {
         console.error('Quick lead update cloud save failed:', error)
         alert(error.message || 'Lead updated locally, but cloud save failed. Check Cloud Sync before closing the app.')
@@ -801,6 +823,7 @@ export default function LeadPipeline({
       : null
 
     const newLead = {
+      ...(existingLeadForEdit || {}),
       id: editingLeadId || crypto.randomUUID?.() || String(Date.now()),
       client: trimmedClient,
       coBorrower: leadForm.coBorrower.trim(),
@@ -817,6 +840,8 @@ export default function LeadPipeline({
       dateReferred: leadForm.referralDate,
       status: leadForm.stage,
       loanAmount: parseMoneyValue(leadForm.loanAmount),
+      purchasePrice: parseMoneyValue(leadForm.purchasePrice),
+      propertyAddress: leadForm.propertyAddress.trim(),
       loanType: leadForm.loanType.trim(),
       interestRate: leadForm.interestRate.trim(),
       firstPaymentDate: leadForm.firstPaymentDate,
@@ -1068,6 +1093,28 @@ export default function LeadPipeline({
                   value={leadForm.loanAmount}
                   onChange={(event) => updateLeadForm('loanAmount', event.target.value)}
                   placeholder="425,000"
+                />
+              </div>
+
+              <div className="field">
+                <label htmlFor="purchasePrice">Purchase Price</label>
+                <input
+                  id="purchasePrice"
+                  type="text"
+                  inputMode="numeric"
+                  value={leadForm.purchasePrice}
+                  onChange={(event) => updateLeadForm('purchasePrice', event.target.value)}
+                  placeholder="500,000"
+                />
+              </div>
+
+              <div className="field">
+                <label htmlFor="propertyAddress">Property Address</label>
+                <input
+                  id="propertyAddress"
+                  value={leadForm.propertyAddress}
+                  onChange={(event) => updateLeadForm('propertyAddress', event.target.value)}
+                  placeholder="123 Main St, Greenville, SC"
                 />
               </div>
 

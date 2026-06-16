@@ -21,6 +21,21 @@ const LEAD_APP_FIELDS = [
   'appraisalNotes',
   'loanProgress',
   'pipelineStatus',
+  'loanHubId',
+  'loanHubEnabled',
+  'hfgGoPortalUrl',
+  'progressTrackerUrl',
+  'strategyVideos',
+  'nextBestStep',
+  'importantDates',
+  'propertyAddress',
+  'purchasePrice',
+  'loanOfficerPhone',
+  'loanOfficerEmail',
+  'loanOfficerCalendarUrl',
+  'teamContacts',
+  'partnerPhone',
+  'partnerEmail',
   'tridReviewedAt',
   'tridReviewedForClosingDate',
 ]
@@ -150,6 +165,22 @@ export async function loadLeads() {
   if (error) throw error
 
   return (data || []).map(leadFromSupabase)
+}
+
+export async function loadPublicLoanHubLead(loanHubId) {
+  const trimmedLoanHubId = String(loanHubId || '').trim()
+  if (!trimmedLoanHubId) return null
+
+  const supabase = await getSupabaseClient()
+  const { data, error } = await supabase
+    .from('leads')
+    .select('*')
+    .eq('app_data->>loanHubId', trimmedLoanHubId)
+    .maybeSingle()
+
+  if (error) throw error
+
+  return data ? leadFromSupabase(data) : null
 }
 
 export async function saveLead(lead) {

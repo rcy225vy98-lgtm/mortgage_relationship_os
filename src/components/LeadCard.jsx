@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { money, shortDate, daysSince } from '../utils/formatting'
 import { getLeadFollowUpPlan, isPastDue } from '../utils/cadence'
 import { downloadLoaNeedsPdf } from '../utils/loaPdf'
+import { ensureLoanHubFields, generateLoanHubId, getLoanHubLink } from '../utils/loanHub'
+import LoanHubAdminPanel from './LoanHubAdminPanel'
 import SuggestedMessagePanel from './SuggestedMessagePanel'
 
 const inactiveLeadStages = new Set(['DNQ', 'Other Lender', 'Builder Lender', 'Not Interested', 'Closed'])
@@ -250,33 +252,15 @@ function getApprovalSummary(lead) {
   return 'Not Pre-Approved Yet'
 }
 
-function getLeadChipToneClassName(label) {
+function getSummaryStatusToneClassName(label) {
   const normalizedLabel = String(label || '').trim().toLowerCase()
 
-  if (normalizedLabel === 'pre-approved' || normalizedLabel === 'clear to close') return 'chip-tone-green'
-  if (normalizedLabel === 'under contract' || normalizedLabel === 'in process' || normalizedLabel === 'in processing' || normalizedLabel === 'conditional approval') return 'chip-tone-blue'
-  if (normalizedLabel === 'closed') return 'chip-tone-gold'
-  if (normalizedLabel === 'dnq') return 'chip-tone-red'
-  if (normalizedLabel === 'contact attempted' || normalizedLabel === 'attempted to connect') return 'chip-tone-muted'
-  if (normalizedLabel === 'new lead' || normalizedLabel === 'new referral') return 'chip-tone-navy'
+  if (['pre-approved', 'clear to close', 'closed'].includes(normalizedLabel)) return 'summary-status-green'
+  if (['under contract', 'conditional approval'].includes(normalizedLabel)) return 'summary-status-gold'
+  if (['application started', 'refi', 'waiting on docs', 'documentation', 'in process', 'in processing'].includes(normalizedLabel)) return 'summary-status-blue'
+  if (['dnq', 'lost', 'other lender', 'builder lender'].includes(normalizedLabel)) return 'summary-status-red'
 
-  return ''
-}
-
-function getLeadChipClassName(label, type = 'default') {
-  const normalizedLabel = String(label || '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-
-  return [
-    'collapsed-lead-chip',
-    `chip-type-${type}`,
-    normalizedLabel ? `chip-${normalizedLabel}` : '',
-    type === 'stage' || type === 'approval' ? getLeadChipToneClassName(label) : '',
-  ]
-    .filter(Boolean)
-    .join(' ')
+  return 'summary-status-slate'
 }
 
 function cleanSummaryText(value, maxLength = 150) {
@@ -288,57 +272,6 @@ function cleanSummaryText(value, maxLength = 150) {
   if (normalizedValue.length <= maxLength) return normalizedValue
 
   return `${normalizedValue.slice(0, maxLength - 1).trim()}...`
-}
-
-function getLeadSnapshotItems({ lead, stage, unmetNeedsCount, hasLoanAmount, showClosingTiming, businessDaysUntilClosing }) {
-  const items = []
-  const noteSummary = cleanSummaryText(lead.detail || lead.notes || lead.summary, 170)
-
-  if (noteSummary) {
-    items.push({ type: 'context', label: 'Context', text: noteSummary })
-  }
-
-  if (lead.coBorrower) {
-    items.push({ type: 'fact', label: 'Co-borrower', text: lead.coBorrower })
-  }
-
-  if (lead.loanType) {
-    items.push({ type: 'fact', label: 'Loan', text: lead.loanType })
-  }
-
-  if (lead.creditScore) {
-    items.push({ type: 'fact', label: 'Credit', text: String(lead.creditScore) })
-  }
-
-  if (unmetNeedsCount > 0) {
-    items.push({
-      type: 'hot',
-      label: 'Needs',
-      text: `${unmetNeedsCount} unmet item${unmetNeedsCount === 1 ? '' : 's'}`,
-    })
-  }
-
-  if (lead.manualTaskActive && lead.nextAction) {
-    items.push({ type: 'hot', label: 'Task', text: cleanSummaryText(lead.nextAction, 72) })
-  }
-
-  if (showClosingTiming) {
-    items.push({ type: 'hot', label: 'Closing', text: formatBusinessDaysLabel(businessDaysUntilClosing) })
-  }
-
-  if (activeClosingStages.has(stage) && !lead.appraisalOrdered && !lead.appraisalReceived) {
-    items.push({ type: 'gap', label: 'Appraisal', text: 'Not ordered' })
-  }
-
-  if (!hasLoanAmount) {
-    items.push({ type: 'gap', label: 'Gap', text: 'Loan amount missing' })
-  }
-
-  if (!lead.phone && !lead.email) {
-    items.push({ type: 'gap', label: 'Gap', text: 'Contact info missing' })
-  }
-
-  return items.slice(0, 5)
 }
 
 function getNeedsListCopyText(lead, needsList) {
@@ -533,6 +466,7 @@ export default function LeadCard({ lead, onEdit, onArchive, onMarkTouched, onPus
   const [needDraft, setNeedDraft] = useState('')
   const [needOwnerDraft, setNeedOwnerDraft] = useState('borrower')
   const [needsCopyStatus, setNeedsCopyStatus] = useState('idle')
+  const [loanHubCopyStatus, setLoanHubCopyStatus] = useState('idle')
   const [isQuickEditing, setIsQuickEditing] = useState(false)
   const [quickEditDraft, setQuickEditDraft] = useState({
     client: '',
@@ -585,10 +519,8 @@ export default function LeadCard({ lead, onEdit, onArchive, onMarkTouched, onPus
   const attemptedNoConnection = stage === 'Contact Attempted' || stage === 'Attempted to Connect'
   const actionDue = isPastDue(lead.nextActionDate)
   const followUpPlan = getLeadFollowUpPlan(lead)
-  const priorityClass = followUpPlan.priority.toLowerCase().replace(/\s+/g, '-')
   const smartFollowUpDue = followUpPlan.priority === 'Urgent' || followUpPlan.priority === 'Due Today'
   const hasFutureFollowUp = Boolean(lead.nextActionDate) && !smartFollowUpDue && !actionDue
-  const showFollowUpReasons = inactiveLead ? actionDue || smartFollowUpDue : stale || attemptedNoConnection || actionDue || smartFollowUpDue
   const touchHistory = lead.touchHistory || []
   const activityTabs = ['All', 'Notes', 'Calls', 'Emails', 'System']
   const clientFileActivity = [
@@ -621,6 +553,8 @@ export default function LeadCard({ lead, onEdit, onArchive, onMarkTouched, onPus
   const stageLabel = stage
   const leadTypeLabel = lead.leadType || 'Buyer Lead'
   const showApprovalSummary = approvalSummary && approvalSummary !== stageLabel && approvalSummary !== leadTypeLabel
+  const collapsedStatusLabel = showApprovalSummary ? approvalSummary : (stageLabel || approvalSummary || 'No Status')
+  const collapsedStatusToneClassName = getSummaryStatusToneClassName(collapsedStatusLabel)
   const showClosingTiming = activeClosingStages.has(stage) && lead.closingDate
   const businessDaysUntilClosing = getBusinessDaysUntil(lead.closingDate)
   const loanProgress = lead.loanProgress || lead.pipelineStatus || (stage === 'Refi' ? 'In Processing' : stage)
@@ -630,14 +564,6 @@ export default function LeadCard({ lead, onEdit, onArchive, onMarkTouched, onPus
   const needsList = Array.isArray(lead.needsList) ? lead.needsList : []
   const unmetNeedsCount = needsList.filter((item) => !item.met).length
   const needOwnerOptions = getNeedOwnerOptions(lead)
-  const leadSnapshotItems = getLeadSnapshotItems({
-    lead,
-    stage,
-    unmetNeedsCount,
-    hasLoanAmount,
-    showClosingTiming,
-    businessDaysUntilClosing,
-  })
   const nextBestAction = getNextBestActionInsight({
     lead,
     stage,
@@ -650,6 +576,24 @@ export default function LeadCard({ lead, onEdit, onArchive, onMarkTouched, onPus
     businessDaysUntilClosing,
     hasLoanAmount,
   })
+  const collapsedContextText = cleanSummaryText(
+    lead.notes
+      || lead.detail
+      || lead.summary
+      || lead.nextAction
+      || nextBestAction.detail
+      || followUpPlan.recommendedAction
+      || 'No context added yet.',
+    180,
+  )
+  const showCollapsedLogTouch = !isExpanded && (
+    lead.manualTaskActive
+    || actionDue
+    || smartFollowUpDue
+    || stale
+    || attemptedNoConnection
+  )
+  const loanHubLink = getLoanHubLink(lead)
 
   const clientFileTasks = [
     lead.manualTaskActive && {
@@ -897,6 +841,42 @@ export default function LeadCard({ lead, onEdit, onArchive, onMarkTouched, onPus
     onEdit(lead)
   }
 
+  function openLoanHub(event) {
+    event.stopPropagation()
+    const loanHubLead = ensureLoanHubFields(lead)
+
+    if (!lead.loanHubId && onQuickUpdate) {
+      onQuickUpdate(lead.id, {
+        loanHubId: loanHubLead.loanHubId,
+        loanHubEnabled: true,
+      })
+    }
+
+    window.open(getLoanHubLink(loanHubLead), '_blank', 'noopener,noreferrer')
+  }
+
+  async function copyLoanHubLink(event) {
+    event.stopPropagation()
+    const nextLoanHubId = lead.loanHubId || generateLoanHubId()
+    const nextLink = getLoanHubLink({ loanHubId: nextLoanHubId })
+
+    if (!lead.loanHubId && onQuickUpdate) {
+      onQuickUpdate(lead.id, {
+        loanHubId: nextLoanHubId,
+        loanHubEnabled: true,
+      })
+    }
+
+    try {
+      await navigator.clipboard.writeText(nextLink)
+      setLoanHubCopyStatus('copied')
+      window.setTimeout(() => setLoanHubCopyStatus('idle'), 1800)
+    } catch (error) {
+      console.error('Unable to copy Loan Hub link:', error)
+      alert('Unable to copy the Loan Hub link. You can still select it from the Loan Hub panel.')
+    }
+  }
+
   function beginQuickEdit() {
     setQuickEditDraft({
       client: lead.client || '',
@@ -1030,91 +1010,36 @@ export default function LeadCard({ lead, onEdit, onArchive, onMarkTouched, onPus
       className={leadCardClassName}
       onClick={handleCardClick}
     >
-      <div className="lead-topline">
-        <div className="collapsed-lead-identity">
-          <div className="name-row">
-            <h3 className="collapsed-lead-name-stack">
-              <span>{String(lead.client || '').split(' ')[0]}</span>
-              <span>{String(lead.client || '').split(' ').slice(1).join(' ')}</span>
-            </h3>
+      <div className="lead-topline lead-card-summary">
+        <div className="lead-card-summary-header">
+          <div className="lead-card-summary-identity">
+            <h3 className="lead-card-summary-name">{lead.client || 'Unnamed Lead'}</h3>
+            <p className="lead-card-summary-referral">
+              {lead.leadType === 'Agent Prospect' ? 'Source:' : 'Referred by'} <strong>{lead.partner || 'Unknown source'}</strong>
+            </p>
           </div>
 
-          <p className="muted lead-referral-line">
-            {lead.leadType === 'Agent Prospect' ? 'Source' : 'Referred by'} <strong>{lead.partner}</strong>{getLeadDateReferred(lead) ? ` on ${shortLeadDate(getLeadDateReferred(lead))}` : ''}
-          </p>
-
-          <div className="meta-row collapsed-lead-chips">
-            <span className={getLeadChipClassName(leadTypeLabel, 'lead-type')}>{leadTypeLabel}</span>
-            <span className={getLeadChipClassName(stageLabel, 'stage')}>{stageLabel}</span>
-            {lead.leadSource && <span className={getLeadChipClassName(lead.leadSource, 'source')}>Source: {lead.leadSource}</span>}
-            {showApprovalSummary && <span className={getLeadChipClassName(approvalSummary, 'approval')}>{approvalSummary}</span>}
-          </div>
-
-          {leadSnapshotItems.length > 0 && (
-            <div className="collapsed-lead-snapshot" aria-label={`${lead.client} lead summary`}>
-              {leadSnapshotItems.map((item) => (
-                <div className={`collapsed-lead-snapshot-item ${item.type}`} key={`${item.label}-${item.text}`}>
-                  <span>{item.label}</span>
-                  <p>{item.text}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-          <div className="lead-stats">
-            <div className="lead-stat-item lead-stat-date-referred">
+          <div className="lead-card-summary-stats">
+            <div className="lead-card-summary-stat">
               <span>Date Referred</span>
               <strong>{shortLeadDate(getLeadDateReferred(lead))}</strong>
             </div>
-          <div className="lead-stat-item">
-            <span>Loan Amount</span>
-            <strong className={hasLoanAmount ? '' : 'missing-data-value'}>
-              {hasLoanAmount ? money(lead.loanAmount) : 'Not captured'}
-            </strong>
-          </div>
-          <div className="lead-stat-item">
-            <span>Last Touch</span>
-            <strong>{shortDate(lead.lastTouch)}</strong>
-          </div>
-          <div className="lead-stat-item">
-            <span>Next Touch</span>
-            <strong>{shortDate(lead.nextActionDate)}</strong>
+            <div className={`lead-card-summary-stat lead-card-summary-status ${collapsedStatusToneClassName}`}>
+              <span>Status</span>
+              <strong>{collapsedStatusLabel}</strong>
+            </div>
+            <div className="lead-card-summary-stat">
+              <span>Last Touch</span>
+              <strong>{shortDate(lead.lastTouch)}</strong>
+            </div>
           </div>
         </div>
 
-        <div className="lead-summary-row">
-          {showClosingTiming && (
-            <div className="closing-focus-strip">
-              <span>Closing</span>
-              <strong>{shortDate(lead.closingDate)}</strong>
-              <b>{formatBusinessDaysLabel(businessDaysUntilClosing)}</b>
-            </div>
-          )}
-
-          <div className={`next-best-action-card tone-${nextBestAction.tone}`}>
-            <span>{nextBestAction.label}</span>
-            <strong>{nextBestAction.title}</strong>
-            <p>{nextBestAction.detail}</p>
-          </div>
-
-          <div className={`smart-follow-up-strip priority-${priorityClass}`}>
-            <div className="smart-follow-up-headline">
-              <span>{followUpPlan.priority} · {followUpPlan.recommendedChannel}</span>
-              <p>{followUpPlan.recommendedAction}</p>
-            </div>
-          </div>
+        <div className="lead-card-summary-context">
+          <span>Context</span>
+          <p>{collapsedContextText}</p>
         </div>
       </div>
-
-      {showFollowUpReasons && (
-        <div className="reason-row">
-          {attemptedNoConnection && <span className="reason-chip warning">Attempted Contact</span>}
-          {stale && <span className="reason-chip danger">Stale Touch</span>}
-          {actionDue && <span className="reason-chip navy">Action Due</span>}
-          {smartFollowUpDue && <span className="reason-chip navy">{followUpPlan.priority}</span>}
-        </div>
-      )}
 
       {isExpanded && (
         <div className={`lead-client-file-page ${isQuickEditing ? 'is-editing-client-file' : ''}`}>
@@ -1146,6 +1071,14 @@ export default function LeadCard({ lead, onEdit, onArchive, onMarkTouched, onPus
                   }}>
                     <span className="client-file-action-icon" aria-hidden="true">+</span>
                     <span>New Task</span>
+                  </button>
+                  <button type="button" className="client-file-action-button loan-hub-action" onClick={openLoanHub}>
+                    <span className="client-file-action-icon" aria-hidden="true">LH</span>
+                    <span>{lead.loanHubId ? 'Open Loan Hub' : 'Create Loan Hub'}</span>
+                  </button>
+                  <button type="button" className="client-file-action-button loan-hub-action" onClick={copyLoanHubLink}>
+                    <span className="client-file-action-icon" aria-hidden="true">↗</span>
+                    <span>{loanHubCopyStatus === 'copied' ? 'Copied' : 'Copy Hub Link'}</span>
                   </button>
                 </div>
               </div>
@@ -1613,6 +1546,8 @@ export default function LeadCard({ lead, onEdit, onArchive, onMarkTouched, onPus
             )}
           </div>
 
+          <LoanHubAdminPanel lead={{ ...lead, loanHubLink }} onUpdate={onQuickUpdate} />
+
           <div className="client-file-needs" onClick={(event) => event.stopPropagation()}>
             <div className="client-file-section-header">
               <strong>Needs List</strong>
@@ -1884,29 +1819,17 @@ export default function LeadCard({ lead, onEdit, onArchive, onMarkTouched, onPus
         </div>
       )}
 
-      <div className="lead-actions" onClick={(event) => event.stopPropagation()}>
-        {!isExpanded && (
+      <div className={`lead-actions ${!isExpanded ? 'lead-card-summary-actions' : ''}`} onClick={(event) => event.stopPropagation()}>
+        {showCollapsedLogTouch && (
           <button
             type="button"
-            className="primary-button small-button"
+            className="ghost-button small-button"
             onClick={(event) => {
               event.stopPropagation()
               openTouchLogger(event)
             }}
           >
             Log Touch
-          </button>
-        )}
-        {!isExpanded && (
-          <button
-            type="button"
-            className="ghost-button small-button"
-            onClick={(event) => {
-              event.stopPropagation()
-              onPushNextAction(lead.id)
-            }}
-          >
-            Push 3 Days
           </button>
         )}
         {!isExpanded && (
@@ -1930,6 +1853,20 @@ export default function LeadCard({ lead, onEdit, onArchive, onMarkTouched, onPus
         </button>
         {isExpanded && (
           <>
+            <button
+              type="button"
+              className="primary-button small-button loan-hub-open-button"
+              onClick={openLoanHub}
+            >
+              {lead.loanHubId ? 'Open Loan Hub' : 'Create Loan Hub'}
+            </button>
+            <button
+              type="button"
+              className="ghost-button small-button"
+              onClick={copyLoanHubLink}
+            >
+              {loanHubCopyStatus === 'copied' ? 'Copied' : 'Copy Loan Hub Link'}
+            </button>
             <button
               type="button"
               className="ghost-button small-button"

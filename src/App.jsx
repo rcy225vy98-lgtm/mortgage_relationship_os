@@ -4,7 +4,7 @@ import { daysSince } from './utils/formatting'
 import { partnerScore } from './utils/scoring'
 import { getRecommendedNextTouchDate } from './utils/cadence'
 import { importLeadTrackerRows, summarizeLeadTrackerImport } from './data/importLeadTracker'
-import { loadLeads, saveLeads } from './data/leadsRepository'
+import { loadLeads, loadPublicLoanHubLead, saveLeads } from './data/leadsRepository'
 import {
   loadPartnerProfiles,
   partnerProfilesArrayToMap,
@@ -19,7 +19,9 @@ import PartnersPage from './pages/PartnersPage.jsx'
 import PartnerProfilePage from './pages/PartnerProfilePage.jsx'
 import DashboardPage from './pages/DashboardPage.jsx'
 import MortgageCoachPage, { MortgageAnalysisSharePage } from './pages/MortgageCoachPage.jsx'
+import LoanHubPage from './pages/LoanHubPage.jsx'
 import { parseSharePayload } from './utils/mortgageCoach'
+import { getLoanHubIdFromPath } from './utils/loanHub'
 import usePartnerTouchReminders from './hooks/usePartnerTouchReminders'
 import useKpiAnalytics from './hooks/useKpiAnalytics'
 import useDashboardOverview from './hooks/useDashboardOverview'
@@ -396,6 +398,9 @@ function App() {
     }
   })
   const [sharedMortgageAnalysis, setSharedMortgageAnalysis] = useState(() => readSharedMortgageAnalysisFromHash())
+  const publicLoanHubId = getLoanHubIdFromPath()
+  const [publicLoanHubLeadFromCloud, setPublicLoanHubLeadFromCloud] = useState(null)
+  const [publicLoanHubLoadStatus, setPublicLoanHubLoadStatus] = useState(publicLoanHubId ? 'loading' : 'none')
   const [query, setQuery] = useState('')
   const [partnerFilter, setPartnerFilter] = useState('All Partners')
   const [agentQuery, setAgentQuery] = useState('')
@@ -781,6 +786,36 @@ function App() {
       needsAttention: activeLeads.filter((lead) => isLeadFollowUpDue(lead)).length,
     }
   }, [activeLeads])
+  const localPublicLoanHubLead = useMemo(() => {
+    if (!publicLoanHubId) return null
+    return leads.find((lead) => String(lead.loanHubId || '') === String(publicLoanHubId)) || null
+  }, [leads, publicLoanHubId])
+  const publicLoanHubLead = localPublicLoanHubLead || publicLoanHubLeadFromCloud
+
+  useEffect(() => {
+    if (!publicLoanHubId || localPublicLoanHubLead) {
+      return
+    }
+
+    let isCancelled = false
+
+    loadPublicLoanHubLead(publicLoanHubId)
+      .then((lead) => {
+        if (isCancelled) return
+        setPublicLoanHubLeadFromCloud(lead)
+        setPublicLoanHubLoadStatus('loaded')
+      })
+      .catch((error) => {
+        console.error('Public Loan Hub load failed:', error)
+        if (isCancelled) return
+        setPublicLoanHubLeadFromCloud(null)
+        setPublicLoanHubLoadStatus('error')
+      })
+
+    return () => {
+      isCancelled = true
+    }
+  }, [localPublicLoanHubLead, publicLoanHubId])
 
   const todayFollowUpLeads = useMemo(() => {
     const today = new Date()
@@ -1321,6 +1356,10 @@ function App() {
 
   if (sharedMortgageAnalysis) {
     return <MortgageAnalysisSharePage analysis={sharedMortgageAnalysis} />
+  }
+
+  if (publicLoanHubId) {
+    return <LoanHubPage lead={publicLoanHubLead} isLoading={!publicLoanHubLead && publicLoanHubLoadStatus === 'loading'} />
   }
 
   return (
