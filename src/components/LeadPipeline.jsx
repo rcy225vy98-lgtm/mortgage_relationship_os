@@ -200,6 +200,7 @@ function isDefaultNextAction(leadType, nextAction) {
 
 const blankLeadForm = {
   client: '',
+  hasCoBorrower: false,
   coBorrower: '',
   coBorrowerPhone: '',
   coBorrowerEmail: '',
@@ -568,6 +569,16 @@ export default function LeadPipeline({
         }
       }
 
+      if (field === 'hasCoBorrower') {
+        return {
+          ...current,
+          hasCoBorrower: value,
+          coBorrower: value ? current.coBorrower : '',
+          coBorrowerPhone: value ? current.coBorrowerPhone : '',
+          coBorrowerEmail: value ? current.coBorrowerEmail : '',
+        }
+      }
+
       return {
         ...current,
         [field]: value,
@@ -612,6 +623,7 @@ export default function LeadPipeline({
     setSelectedLeadId(lead.id)
     setLeadForm({
       client: lead.client || '',
+      hasCoBorrower: Boolean(lead.coBorrower || lead.coBorrowerPhone || lead.coBorrowerEmail),
       coBorrower: lead.coBorrower || '',
       coBorrowerPhone: lead.coBorrowerPhone || '',
       coBorrowerEmail: lead.coBorrowerEmail || '',
@@ -826,9 +838,9 @@ export default function LeadPipeline({
       ...(existingLeadForEdit || {}),
       id: editingLeadId || crypto.randomUUID?.() || String(Date.now()),
       client: trimmedClient,
-      coBorrower: leadForm.coBorrower.trim(),
-      coBorrowerPhone: leadForm.coBorrowerPhone.trim(),
-      coBorrowerEmail: leadForm.coBorrowerEmail.trim(),
+      coBorrower: leadForm.hasCoBorrower ? leadForm.coBorrower.trim() : '',
+      coBorrowerPhone: leadForm.hasCoBorrower ? leadForm.coBorrowerPhone.trim() : '',
+      coBorrowerEmail: leadForm.hasCoBorrower ? leadForm.coBorrowerEmail.trim() : '',
       partner: partnerToSave,
       leadSource: leadForm.leadSource,
       phone: trimmedPhone,
@@ -941,41 +953,6 @@ export default function LeadPipeline({
             />
           </div>
 
-          {shouldShowClientContactFields && (
-            <>
-              <div className="field">
-                <label htmlFor="coBorrower">Co-Borrower</label>
-                <input
-                  id="coBorrower"
-                  value={leadForm.coBorrower}
-                  onChange={(event) => updateLeadForm('coBorrower', event.target.value)}
-                  placeholder="Optional co-borrower name"
-                />
-              </div>
-
-              <div className="field">
-                <label htmlFor="coBorrowerPhone">Co-Borrower Phone</label>
-                <input
-                  id="coBorrowerPhone"
-                  value={leadForm.coBorrowerPhone}
-                  onChange={(event) => updateLeadForm('coBorrowerPhone', event.target.value)}
-                  placeholder="(864) 555-1234"
-                />
-              </div>
-
-              <div className="field">
-                <label htmlFor="coBorrowerEmail">Co-Borrower Email</label>
-                <input
-                  id="coBorrowerEmail"
-                  type="email"
-                  value={leadForm.coBorrowerEmail}
-                  onChange={(event) => updateLeadForm('coBorrowerEmail', event.target.value)}
-                  placeholder="co-borrower@email.com"
-                />
-              </div>
-            </>
-          )}
-
           <div className="field">
             <label htmlFor="partner">{partnerLabel} *</label>
             <input
@@ -1027,6 +1004,55 @@ export default function LeadPipeline({
                   placeholder={shouldShowClientContactFields ? 'client@email.com' : 'agent@email.com'}
                 />
               </div>
+
+              {shouldShowClientContactFields && (
+                <div className="field checkbox-field full">
+                  <label htmlFor="hasCoBorrower">
+                    <input
+                      id="hasCoBorrower"
+                      type="checkbox"
+                      checked={Boolean(leadForm.hasCoBorrower)}
+                      onChange={(event) => updateLeadForm('hasCoBorrower', event.target.checked)}
+                    />
+                    Add co-borrower
+                  </label>
+                </div>
+              )}
+
+              {shouldShowClientContactFields && leadForm.hasCoBorrower && (
+                <>
+                  <div className="field">
+                    <label htmlFor="coBorrower">Co-Borrower</label>
+                    <input
+                      id="coBorrower"
+                      value={leadForm.coBorrower}
+                      onChange={(event) => updateLeadForm('coBorrower', event.target.value)}
+                      placeholder="Co-borrower name"
+                    />
+                  </div>
+
+                  <div className="field">
+                    <label htmlFor="coBorrowerPhone">Co-Borrower Phone</label>
+                    <input
+                      id="coBorrowerPhone"
+                      value={leadForm.coBorrowerPhone}
+                      onChange={(event) => updateLeadForm('coBorrowerPhone', event.target.value)}
+                      placeholder="(864) 555-1234"
+                    />
+                  </div>
+
+                  <div className="field">
+                    <label htmlFor="coBorrowerEmail">Co-Borrower Email</label>
+                    <input
+                      id="coBorrowerEmail"
+                      type="email"
+                      value={leadForm.coBorrowerEmail}
+                      onChange={(event) => updateLeadForm('coBorrowerEmail', event.target.value)}
+                      placeholder="co-borrower@email.com"
+                    />
+                  </div>
+                </>
+              )}
 
               {shouldShowPartnerContactFields && (
                 <div className="field full">
